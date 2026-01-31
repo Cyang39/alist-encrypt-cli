@@ -1,0 +1,14 @@
+{
+  "name": "alist-encrypt-cli",
+  "private": true,
+  "scripts": {
+    "compile": "bun build --compile --minify src/encrypt.ts --target bun --outfile bin/encrypt",
+    "build": "bun build --sourcemap --minify src/encrypt.ts --target bun --outdir dist"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
