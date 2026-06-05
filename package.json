@@ -12,6 +12,7 @@
     "server": "bun src/cli.ts server",
     "compile": "bun build --compile --minify src/cli.ts --target bun --outfile bin/alist-encrypt",
     "build": "bun build --sourcemap --minify src/cli.ts --target bun --outdir dist",
-    "lint": "biome check --write"
+    "lint": "biome check --write",
+    "test": "bun test"
   }
 }
