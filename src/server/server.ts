@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import path from "node:path";
 
+import FlowEnc from "@/libs/flow-enc.js";
 import { getConfig, initAlistConfig, loadConfig } from "./config.js";
 import logger from "./logger.js";
 import { httpClient, httpProxy } from "./proxy.js";
@@ -12,7 +13,6 @@ import {
   pathExec,
   pathFindPasswd,
 } from "./utils/common.js";
-import FlowEnc from "./utils/flow-enc.js";
 
 // ==================== 路由定义 ====================
 

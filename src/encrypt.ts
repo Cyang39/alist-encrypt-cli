@@ -2,7 +2,7 @@ import { createReadStream, createWriteStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 
-import AesCTR from "./aesCTR.js";
+import AesCTR from "@/libs/aes-ctr.js";
 
 export async function runEncrypt(
   inputPath: string,

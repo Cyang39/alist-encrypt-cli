@@ -1,7 +1,7 @@
-import AesCTR from "../../aesCTR.js";
-import type { EncType } from "../types.js";
-import MixEnc from "./mix-enc.js";
-import Rc4Md5 from "./rc4-md5.js";
+import AesCTR from "@/libs/aes-ctr.js";
+import MixEnc from "@/libs/mix-enc.js";
+import Rc4Md5 from "@/libs/rc4-md5.js";
+import type { EncType } from "@/server/types.js";
 
 const cachePasswdOutward: Record<string, string> = {};
 

@@ -1,9 +1,9 @@
 import path from "node:path";
 
-import type { PasswdInfo } from "../types.js";
-import CRCn from "./crc.js";
-import FlowEnc from "./flow-enc.js";
-import MixBase64 from "./mix-base64.js";
+import CRCn from "@/libs/crc.js";
+import FlowEnc from "@/libs/flow-enc.js";
+import MixBase64 from "@/libs/mix-base64.js";
+import type { PasswdInfo } from "@/server/types.js";
 
 const crc6 = new CRCn(6);
 const origPrefix = "orig_";
