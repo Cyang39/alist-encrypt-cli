@@ -1,16 +1,17 @@
 {
   "name": "alist-encrypt-cli",
-  "private": true,
-  "scripts": {
-    "compile": "bun build --compile --minify src/encrypt.ts --target bun --outfile bin/encrypt",
-    "build": "bun build --sourcemap --minify src/encrypt.ts --target bun --outdir dist",
-    "lint": "biome check --write"
-  },
   "devDependencies": {
     "@biomejs/biome": "2.4.16",
     "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "private": true,
+  "scripts": {
+    "server": "bun src/cli.ts server",
+    "compile": "bun build --compile --minify src/cli.ts --target bun --outfile bin/alist-encrypt",
+    "build": "bun build --sourcemap --minify src/cli.ts --target bun --outdir dist",
+    "lint": "biome check --write"
   }
 }
