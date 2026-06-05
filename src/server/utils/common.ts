@@ -23,7 +23,9 @@ export function pathExec(
   url: string,
 ): RegExpExecArray | null {
   for (const filePath of encPath) {
-    const result = globToRegex(filePath).exec(url);
+    // 确保路径以 / 开头以匹配 URL
+    const normalized = filePath.startsWith("/") ? filePath : `/${filePath}`;
+    const result = globToRegex(normalized).exec(url);
     if (result) return result;
   }
   return null;
@@ -103,37 +105,54 @@ export function pathFindPasswd(
   | Record<string, never> {
   for (const passwdInfo of passwdList) {
     if (!passwdInfo.enable) continue;
+    // 先检查带前缀的路径（/d/ /p/ /dav/）
     for (const filePath of passwdInfo.encPath) {
       const result = globToRegex(filePath).exec(url);
       if (result) {
-        const newPasswdInfo = { ...passwdInfo };
-        const folders = url.split("/");
-        for (const folderName of folders) {
-          const data = decodeFolderName(
-            passwdInfo.password,
-            passwdInfo.encType,
-            decodeURIComponent(folderName),
-          );
-          if (data) {
-            newPasswdInfo.encType = data.folderEncType as
-              | "aesctr"
-              | "rc4"
-              | "mix";
-            newPasswdInfo.password = data.folderPasswd;
-            return {
-              passwdInfo: newPasswdInfo,
-              pathInfo: result,
-            };
-          }
+        return matchPasswd(passwdInfo, url, result);
+      }
+    }
+    // 再检查不带前缀的原始路径（用于 alist UI 直接访问）
+    if (passwdInfo.origEncPath) {
+      for (const filePath of passwdInfo.origEncPath) {
+        // 确保路径以 / 开头以匹配 URL
+        const normalized = filePath.startsWith("/") ? filePath : `/${filePath}`;
+        const result = globToRegex(normalized).exec(url);
+        if (result) {
+          return matchPasswd(passwdInfo, url, result);
         }
-        return {
-          passwdInfo,
-          pathInfo: result,
-        };
       }
     }
   }
   return {};
+}
+
+function matchPasswd(
+  passwdInfo: PasswdInfo,
+  url: string,
+  pathInfo: RegExpExecArray,
+): { passwdInfo: PasswdInfo; pathInfo: RegExpExecArray } {
+  const newPasswdInfo = { ...passwdInfo };
+  const folders = url.split("/");
+  for (const folderName of folders) {
+    const data = decodeFolderName(
+      passwdInfo.password,
+      passwdInfo.encType,
+      decodeURIComponent(folderName),
+    );
+    if (data) {
+      newPasswdInfo.encType = data.folderEncType as "aesctr" | "rc4" | "mix";
+      newPasswdInfo.password = data.folderPasswd;
+      return {
+        passwdInfo: newPasswdInfo,
+        pathInfo,
+      };
+    }
+  }
+  return {
+    passwdInfo,
+    pathInfo,
+  };
 }
 
 export function convertRealName(

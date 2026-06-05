@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { Transform } from "node:stream";
+import logger from "./logger.js";
 import * as storage from "./storage.js";
 import type { PasswdInfo } from "./types.js";
 
@@ -45,12 +46,14 @@ export async function httpProxy(
     decryptTransform?: Transform;
     passwdInfo?: PasswdInfo;
     fileSize?: number;
+    encFileName?: string;
     removeHost?: boolean;
   } = {},
 ): Promise<Response> {
   const {
     encryptTransform,
     decryptTransform,
+    encFileName: encFileNameOpt,
     passwdInfo,
     fileSize,
     removeHost,
@@ -83,11 +86,14 @@ export async function httpProxy(
     redirect: "manual",
   });
 
-  console.log(`[proxy] ${request.method} ${urlAddr} -> ${upstream.status}`);
+  logger.info(`[proxy] ${request.method} ${urlAddr} -> ${upstream.status}`);
 
   // 处理 3xx 重定向：缓存并改写为本地 /redirect/:key
   if (upstream.status >= 300 && upstream.status < 305) {
     const redirectUrl = upstream.headers.get("location") || "-";
+    logger.debug(
+      `[proxy] redirect ${upstream.status} -> ${redirectUrl} (decrypt=${!!decryptTransform}, enable=${passwdInfo?.enable})`,
+    );
     if (decryptTransform && passwdInfo?.enable) {
       const key = crypto.randomUUID();
       storage.cacheRedirect(key, {
@@ -126,27 +132,32 @@ export async function httpProxy(
   // 解密文件名
   if (
     request.method === "GET" &&
-    statusCode === 200 &&
+    (statusCode === 200 || statusCode === 206) &&
     passwdInfo?.enable &&
     passwdInfo.encName
   ) {
-    const requestUrl = new URL(request.url);
-    const fileName = decodeURIComponent(
-      requestUrl.pathname.split("/").pop() ?? "",
-    );
+    // 优先使用传递的加密文件名（redirect 链路），否则从请求 URL 提取
+    const fileName =
+      encFileNameOpt ||
+      decodeURIComponent(new URL(request.url).pathname.split("/").pop() ?? "");
     const ext = fileName.includes(".")
       ? fileName.substring(fileName.lastIndexOf("."))
       : "";
     const base = fileName.replace(ext, "");
     const { decodeName } = await import("./utils/common.js");
     const decoded = decodeName(passwdInfo.password, passwdInfo.encType, base);
+    logger.debug(
+      `[proxy] filename decrypt: "${fileName}" -> "${decoded ?? "FAILED"}"`,
+    );
     if (decoded) {
       let cd = respHeaders.get("content-disposition") ?? "";
-      cd = cd.replace(/filename\*?=[^=;]*;?/g, "");
-      respHeaders.set(
-        "content-disposition",
-        `${cd}filename*=UTF-8''${encodeURIComponent(decoded)};`,
-      );
+      logger.debug(`[proxy] original cd: "${cd}"`);
+      cd = cd.replace(/filename\*?=[^=;]*;?/g, "").trim();
+      const newCd = cd
+        ? `${cd}; filename*=UTF-8''${encodeURIComponent(decoded)}`
+        : `attachment; filename*=UTF-8''${encodeURIComponent(decoded)}`;
+      respHeaders.set("content-disposition", newCd);
+      logger.debug(`[proxy] new cd: "${newCd}"`);
     }
   }
 
@@ -154,6 +165,9 @@ export async function httpProxy(
   let responseBody: ReadableStream | null = null;
   if (decryptTransform && upstream.body) {
     // 流式解密
+    logger.debug(
+      `[proxy] decrypting response body (${upstream.headers.get("content-length") ?? "unknown"} bytes)`,
+    );
     responseBody = pipeThroughTransform(upstream.body, decryptTransform);
   } else if (upstream.body) {
     // 直接透传

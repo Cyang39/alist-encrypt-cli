@@ -6,7 +6,7 @@ import { Transform } from "node:stream";
 class AesCTR {
   password: string;
   sizeSalt: string;
-  passwdOutward: string = "";
+  passwdOutward: string;
   key: Buffer;
   iv: Buffer;
   soureIv: Buffer;
@@ -15,6 +15,7 @@ class AesCTR {
   constructor(password: string, sizeSalt: number) {
     this.password = password;
     this.sizeSalt = `${sizeSalt}`;
+    this.passwdOutward = password;
     // check base64
     if (password.length !== 32) {
       this.passwdOutward = crypto

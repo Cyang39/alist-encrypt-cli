@@ -10,6 +10,8 @@ export interface PasswdInfo {
   encName: boolean;
   encSuffix: string;
   encPath: string[];
+  /** 展开前的原始路径（不含 /d /p /dav 前缀），用于无前缀路径匹配 */
+  origEncPath?: string[];
 }
 
 export interface ServerConfig {
@@ -42,6 +44,7 @@ export interface RedirectData {
   url: string;
   passwdInfo: PasswdInfo;
   fileSize: number;
+  encFileName?: string;
 }
 
 /** Hono Context 中 env 的类型 */

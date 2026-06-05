@@ -73,6 +73,8 @@ export function initAlistConfig(
   alistServer: ServerConfig["alistServer"],
 ): void {
   for (const passwdInfo of alistServer.passwdList) {
+    // 保存原始路径（无前缀），用于无前缀路径匹配
+    passwdInfo.origEncPath = [...passwdInfo.encPath];
     const expanded: string[] = [];
     for (const p of passwdInfo.encPath) {
       // 如果已经有前缀则跳过
