@@ -1,9 +1,9 @@
 import { createReadStream, createWriteStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
-import { parseArgs } from "util";
+import { parseArgs } from "node:util";
 
-const AesCTR = (await import("./aesCTR")).default;
+import AesCTR from "./aesCTR.js";
 
 const { values, positionals } = parseArgs({
   args: process.argv.slice(2),
@@ -38,11 +38,7 @@ async function run() {
     console.log(`输入文件: ${inputPath}`);
     console.log(`输出文件: ${outputPath}`);
 
-    await pipeline(
-      input,
-      aes.encryptTransform(),
-      output
-    );
+    await pipeline(input, aes.encryptTransform(), output);
 
     console.log(`✅ 加密成功: ${outputPath}`);
   } catch (err) {
