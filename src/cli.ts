@@ -1,16 +1,16 @@
 import { parseArgs } from "node:util";
 
-const HELP = `用法: alist-encrypt <command> [options]
+const HELP = `Usage: alist-encrypt <command> [options]
 
-命令:
+Commands:
   encrypt <input> -p <password> -o <output>
-                       加密本地文件
-  server               启动 alist 代理服务器
+                       Encrypt a local file
+  server               Start alist proxy server
 
-选项:
-  -h, --help           显示帮助信息
+Options:
+  -h, --help           Show help
 
-示例:
+Examples:
   alist-encrypt encrypt ./video.mp4 -p mypassword -o ./video.enc
   alist-encrypt server
   alist-encrypt server --port 8080`;
@@ -41,7 +41,7 @@ if (command === "encrypt") {
 
   if (!inputPath || !password || !outputPath) {
     console.error(
-      "用法: alist-encrypt encrypt <input> -p <password> -o <output>",
+      "Usage: alist-encrypt encrypt <input> -p <password> -o <output>",
     );
     process.exit(1);
   }
@@ -50,7 +50,7 @@ if (command === "encrypt") {
   try {
     await runEncrypt(inputPath, password, outputPath);
   } catch (err) {
-    console.error("❌ 出错了:", err);
+    console.error("Error:", err);
     process.exit(1);
   }
 } else if (command === "server") {
@@ -60,11 +60,11 @@ if (command === "encrypt") {
       values.port ? Number.parseInt(values.port, 10) : undefined,
     );
   } catch (err) {
-    console.error("❌ 服务器启动失败:", err);
+    console.error("Server startup failed:", err);
     process.exit(1);
   }
 } else {
-  console.error(`未知命令: ${command}`);
+  console.error(`Unknown command: ${command}`);
   console.log(HELP);
   process.exit(1);
 }

@@ -4,7 +4,13 @@ import { join } from "node:path";
 
 import type { ServerConfig } from "./types.js";
 
-const CONFIG_DIR = join(homedir(), ".config", "alist-encrypt");
+// 优先在执行目录下找 config 文件夹，否则使用 ~/.config/alist-encrypt
+const LOCAL_CONFIG_DIR = join(process.cwd(), "config");
+const HOME_CONFIG_DIR = join(homedir(), ".config", "alist-encrypt");
+
+const CONFIG_DIR = existsSync(LOCAL_CONFIG_DIR)
+  ? LOCAL_CONFIG_DIR
+  : HOME_CONFIG_DIR;
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 
 const DEFAULT_CONFIG: ServerConfig = {
@@ -43,7 +49,7 @@ export function loadConfig(): ServerConfig {
   if (!existsSync(CONFIG_FILE)) {
     writeFileSync(CONFIG_FILE, JSON.stringify(DEFAULT_CONFIG, null, 2));
     cachedConfig = structuredClone(DEFAULT_CONFIG);
-    console.log(`📝 已创建默认配置: ${CONFIG_FILE}`);
+    console.log(`Created default config: ${CONFIG_FILE}`);
     return cachedConfig;
   }
 

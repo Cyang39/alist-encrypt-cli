@@ -2,7 +2,15 @@ import { appendFileSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-const LOG_DIR = join(homedir(), ".config", "alist-encrypt", "logs");
+// 优先在执行目录下找 config 文件夹，否则使用 ~/.config/alist-encrypt
+const LOCAL_CONFIG_DIR = join(process.cwd(), "config");
+const HOME_CONFIG_DIR = join(homedir(), ".config", "alist-encrypt");
+const CONFIG_DIR = existsSync(LOCAL_CONFIG_DIR)
+  ? LOCAL_CONFIG_DIR
+  : HOME_CONFIG_DIR;
+const LOG_DIR = join(CONFIG_DIR, "logs");
+
+let fileLogEnabled = false;
 
 function ensureLogDir(): void {
   if (!existsSync(LOG_DIR)) {
@@ -22,6 +30,7 @@ function timestamp(): string {
 }
 
 function writeLog(level: string, args: unknown[]): void {
+  if (!fileLogEnabled) return;
   ensureLogDir();
   const msg = args
     .map((a) => (typeof a === "string" ? a : JSON.stringify(a)))
@@ -32,6 +41,13 @@ function writeLog(level: string, args: unknown[]): void {
   } catch {
     // 写日志失败不影响主流程
   }
+}
+
+/**
+ * 设置是否启用文件日志
+ */
+export function setFileLog(enabled: boolean): void {
+  fileLogEnabled = enabled;
 }
 
 export const logger = {

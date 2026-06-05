@@ -16,6 +16,8 @@ export interface PasswdInfo {
 
 export interface ServerConfig {
   port: number;
+  /** 是否记录日志文件（默认关闭） */
+  logFile?: boolean;
   alistServer: {
     name: string;
     path: string;

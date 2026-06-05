@@ -3,7 +3,7 @@ import path from "node:path";
 
 import FlowEnc from "@/libs/flow-enc.js";
 import { getConfig, initAlistConfig, loadConfig } from "./config.js";
-import logger from "./logger.js";
+import logger, { setFileLog } from "./logger.js";
 import { httpClient, httpProxy } from "./proxy.js";
 import * as storage from "./storage.js";
 import type { PasswdInfo } from "./types.js";
@@ -582,8 +582,32 @@ export async function startServer(port?: number): Promise<void> {
     }
   }
 
+  // 启用或禁用文件日志
+  setFileLog(appConfig.logFile === true);
+
   const routes = buildRoutes();
   const listenPort = port ?? appConfig.port;
+
+  // 打印配置信息
+  const { alistServer } = appConfig;
+  logger.info("========== Configuration ==========");
+  logger.info(`  Listen Port:    ${listenPort}`);
+  logger.info(`  File Logging:   ${appConfig.logFile === true ? "ON" : "OFF"}`);
+  logger.info(
+    `  Upstream:       ${alistServer.https ? "https" : "http"}://${alistServer.serverHost}:${alistServer.serverPort}`,
+  );
+  logger.info(`  Route Match:    ${alistServer.path}`);
+  logger.info(`  Encryption:`);
+  for (const p of alistServer.passwdList) {
+    logger.info(
+      `    - [${p.enable ? "ON" : "OFF"}] ${p.describe} (${p.encType}) encName=${p.encName}`,
+    );
+    logger.info(`      Paths: ${p.encPath.join(", ")}`);
+  }
+  if (appConfig.webdavServer.length > 0) {
+    logger.info(`  WebDAV Servers: ${appConfig.webdavServer.length}`);
+  }
+  logger.info("====================================");
 
   // 调试：显示路由表
   for (const r of routes) {
@@ -623,7 +647,7 @@ export async function startServer(port?: number): Promise<void> {
   });
 
   logger.info(
-    `🚀 alist-encrypt 代理服务器已启动: http://localhost:${listenPort}`,
+    `🚀 alist-encrypt proxy server started: http://localhost:${listenPort}`,
   );
-  logger.info(`📂 配置目录: ~/.config/alist-encrypt/`);
+  logger.info(`Config dir: ~/.config/alist-encrypt/`);
 }

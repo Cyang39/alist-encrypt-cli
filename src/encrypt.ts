@@ -16,11 +16,11 @@ export async function runEncrypt(
   const input = createReadStream(inputPath);
   const output = createWriteStream(outputPath);
 
-  console.log(`🚀 开始加密...`);
-  console.log(`输入文件: ${inputPath}`);
-  console.log(`输出文件: ${outputPath}`);
+  console.log(`Encrypting...`);
+  console.log(`Input:  ${inputPath}`);
+  console.log(`Output: ${outputPath}`);
 
   await pipeline(input, aes.encryptTransform(), output);
 
-  console.log(`✅ 加密成功: ${outputPath}`);
+  console.log(`Done: ${outputPath}`);
 }
