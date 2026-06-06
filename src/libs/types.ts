@@ -22,6 +22,11 @@ export interface ServerConfig {
   jwtSecret?: string;
   /** JWT 过期时间，如 "7d"、"24h"、"60m"（默认 7d） */
   jwtExpiresIn?: string;
+  /** Web UI 配置 */
+  web?: {
+    /** 界面语言（默认 en） */
+    lang?: string;
+  };
   alistServer: {
     name: string;
     path: string;

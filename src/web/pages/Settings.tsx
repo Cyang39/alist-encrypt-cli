@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { type Lang, useI18n } from "../i18n/index.tsx";
 
 interface PasswdInfo {
   password: string;
@@ -39,6 +40,7 @@ interface ServerConfig {
   password?: string;
   jwtSecret?: string;
   jwtExpiresIn?: string;
+  web?: { lang?: string };
   alistServer: AlistServer;
   webdavServer: WebdavServer[];
 }
@@ -166,6 +168,7 @@ function PasswdInfoForm({
   onChange: (i: number, v: PasswdInfo) => void;
   onRemove: (i: number) => void;
 }) {
+  const { t } = useI18n();
   const update = (field: keyof PasswdInfo, value: unknown) => {
     onChange(index, { ...info, [field]: value });
   };
@@ -174,11 +177,11 @@ function PasswdInfoForm({
     <div className="border rounded-lg p-4 mb-3 bg-gray-50">
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm font-medium text-gray-600">
-          Rule {index + 1}
+          {t("passwd.rule", { index: index + 1 })}
         </span>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">Enabled</span>
+            <span className="text-xs text-gray-500">{t("passwd.enabled")}</span>
             <Toggle
               checked={info.enable}
               onChange={(v) => update("enable", v)}
@@ -189,26 +192,26 @@ function PasswdInfoForm({
             onClick={() => onRemove(index)}
             className="text-red-500 hover:text-red-700 text-sm"
           >
-            Remove
+            {t("passwd.remove")}
           </button>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Password">
+        <Field label={t("passwd.password")}>
           <Input
             value={info.password}
             onChange={(v) => update("password", v)}
-            placeholder="Encryption password"
+            placeholder={t("passwd.passwordPlaceholder")}
           />
         </Field>
-        <Field label="Description">
+        <Field label={t("passwd.description")}>
           <Input
             value={info.describe}
             onChange={(v) => update("describe", v)}
-            placeholder="Rule name"
+            placeholder={t("passwd.descriptionPlaceholder")}
           />
         </Field>
-        <Field label="Algorithm">
+        <Field label={t("passwd.algorithm")}>
           <select
             value={info.encType}
             onChange={(e) => update("encType", e.target.value)}
@@ -219,19 +222,19 @@ function PasswdInfoForm({
             <option value="mix">MixEnc</option>
           </select>
         </Field>
-        <Field label="Encrypt Filename">
+        <Field label={t("passwd.encFilename")}>
           <div className="flex items-center gap-2 h-[38px]">
             <Toggle
               checked={info.encName}
               onChange={(v) => update("encName", v)}
             />
             <span className="text-xs text-gray-500">
-              {info.encName ? "ON" : "OFF"}
+              {info.encName ? t("common.on") : t("common.off")}
             </span>
           </div>
         </Field>
       </div>
-      <Field label="Encrypted Paths (one per line)">
+      <Field label={t("passwd.encPaths")}>
         <textarea
           value={info.encPath.join("\n")}
           onChange={(e) =>
@@ -243,7 +246,7 @@ function PasswdInfoForm({
                 .filter(Boolean),
             )
           }
-          placeholder="encrypt_folder/*"
+          placeholder={t("passwd.encPathsPlaceholder")}
           rows={3}
           className="w-full px-3 py-2 border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
@@ -254,6 +257,7 @@ function PasswdInfoForm({
 
 export default function Settings() {
   const navigate = useNavigate();
+  const { t, lang, setLang } = useI18n();
   const [config, setConfig] = useState<ServerConfig | null>(null);
   const [originalPort, setOriginalPort] = useState<number>(0);
   const [loading, setLoading] = useState(true);
@@ -277,9 +281,9 @@ export default function Settings() {
           setOriginalPort(data.config.port);
         }
       })
-      .catch(() => setError("Failed to load settings"))
+      .catch(() => setError(t("common.failedToLoad")))
       .finally(() => setLoading(false));
-  }, [navigate]);
+  }, [navigate, t]);
 
   const handleSave = async () => {
     if (!config) return;
@@ -294,18 +298,17 @@ export default function Settings() {
       });
       const data = await resp.json();
       if (data.success) {
-        // Port changed — need restart
         if (config.port !== originalPort) {
-          setMessage("Settings saved. Restarting server...");
+          setMessage(t("settings.savedRestarting"));
           await handleRestart();
           return;
         }
-        setMessage("Settings saved successfully");
+        setMessage(t("settings.saved"));
       } else {
-        setError(data.message || "Save failed");
+        setError(data.message || t("settings.saveFailed"));
       }
     } catch {
-      setError("Network error");
+      setError(t("common.networkError"));
     } finally {
       setSaving(false);
     }
@@ -321,19 +324,17 @@ export default function Settings() {
       });
       const data = await resp.json();
       if (data.success) {
-        setMessage(`Server restarted on port ${data.port}. Reconnecting...`);
-        // Wait a moment then reload to connect to new port
+        setMessage(t("settings.serverRestarted", { port: String(data.port) }));
         setTimeout(() => {
           window.location.href = `${window.location.origin}${window.location.pathname}#/settings`;
           window.location.reload();
         }, 2000);
       } else {
-        setError(data.message || "Restart failed");
+        setError(data.message || t("settings.restartFailed"));
         setRestarting(false);
       }
     } catch {
-      // Server is restarting, fetch will fail — that's expected
-      setMessage("Server is restarting, please wait...");
+      setMessage(t("settings.restartWait"));
       setTimeout(() => {
         window.location.href = `${window.location.origin}${window.location.pathname}#/settings`;
         window.location.reload();
@@ -341,10 +342,17 @@ export default function Settings() {
     }
   };
 
+  const handleLangSwitch = (newLang: Lang) => {
+    setLang(newLang);
+    if (config) {
+      setConfig({ ...config, web: { ...config.web, lang: newLang } });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <p className="text-gray-500">Loading...</p>
+        <p className="text-gray-500">{t("common.loading")}</p>
       </div>
     );
   }
@@ -353,9 +361,9 @@ export default function Settings() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md">
-          <p className="text-red-500">Failed to load settings</p>
+          <p className="text-red-500">{t("common.failedToLoad")}</p>
           <Link to="/home" className="text-blue-500 hover:underline mt-4 block">
-            Back to Home
+            {t("common.backToHome")}
           </Link>
         </div>
       </div>
@@ -425,23 +433,25 @@ export default function Settings() {
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-3xl mx-auto px-4">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Settings</h1>
+          <h1 className="text-2xl font-bold text-gray-800">
+            {t("settings.title")}
+          </h1>
           <Link to="/home" className="text-blue-500 hover:underline text-sm">
-            Back to Home
+            {t("common.backToHome")}
           </Link>
         </div>
 
         {/* Basic */}
-        <Section title="Basic">
+        <Section title={t("settings.basic")}>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Listen Port">
+            <Field label={t("settings.listenPort")}>
               <Input
                 value={config.port}
                 onChange={(v) => setConfig({ ...config, port: Number(v) || 0 })}
                 type="number"
               />
             </Field>
-            <Field label="Login Password">
+            <Field label={t("settings.loginPassword")}>
               <Input
                 value={config.password ?? ""}
                 onChange={(v) => setConfig({ ...config, password: v })}
@@ -454,21 +464,35 @@ export default function Settings() {
               checked={config.logFile === true}
               onChange={(v) => setConfig({ ...config, logFile: v })}
             />
-            <span className="text-sm text-gray-700">Enable file logging</span>
+            <span className="text-sm text-gray-700">
+              {t("settings.enableFileLogging")}
+            </span>
+          </div>
+          <div className="mt-4">
+            <Field label={t("settings.language")}>
+              <select
+                value={lang}
+                onChange={(e) => handleLangSwitch(e.target.value as Lang)}
+                className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="en">English</option>
+                <option value="zh">中文</option>
+              </select>
+            </Field>
           </div>
         </Section>
 
         {/* JWT */}
-        <Section title="JWT Authentication">
+        <Section title={t("settings.jwtAuth")}>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="JWT Secret">
+            <Field label={t("settings.jwtSecret")}>
               <Input
                 value={config.jwtSecret ?? ""}
                 onChange={(v) => setConfig({ ...config, jwtSecret: v })}
                 placeholder="alist-encrypt-secret"
               />
             </Field>
-            <Field label="JWT Expiry">
+            <Field label={t("settings.jwtExpiry")}>
               <Input
                 value={config.jwtExpiresIn ?? ""}
                 onChange={(v) => setConfig({ ...config, jwtExpiresIn: v })}
@@ -479,23 +503,23 @@ export default function Settings() {
         </Section>
 
         {/* Alist Server */}
-        <Section title="Alist Server">
+        <Section title={t("settings.alistServer")}>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Host">
+            <Field label={t("settings.host")}>
               <Input
                 value={config.alistServer.serverHost}
                 onChange={(v) => updateAlist("serverHost", v)}
                 placeholder="192.168.1.100"
               />
             </Field>
-            <Field label="Port">
+            <Field label={t("settings.port")}>
               <Input
                 value={config.alistServer.serverPort}
                 onChange={(v) => updateAlist("serverPort", Number(v) || 0)}
                 type="number"
               />
             </Field>
-            <Field label="Route Match">
+            <Field label={t("settings.routeMatch")}>
               <Input
                 value={config.alistServer.path}
                 onChange={(v) => updateAlist("path", v)}
@@ -507,13 +531,15 @@ export default function Settings() {
                 checked={config.alistServer.https}
                 onChange={(v) => updateAlist("https", v)}
               />
-              <span className="text-sm text-gray-700">HTTPS</span>
+              <span className="text-sm text-gray-700">
+                {t("settings.https")}
+              </span>
             </div>
           </div>
         </Section>
 
         {/* Encryption Rules */}
-        <Section title="Encryption Rules">
+        <Section title={t("settings.encRules")}>
           {config.alistServer.passwdList.map((info, i) => (
             <PasswdInfoForm
               // biome-ignore lint/suspicious/noArrayIndexKey: controlled form list
@@ -529,15 +555,15 @@ export default function Settings() {
             onClick={addPasswdInfo}
             className="w-full py-2 border-2 border-dashed rounded-lg text-sm text-gray-500 hover:text-blue-500 hover:border-blue-400"
           >
-            + Add Rule
+            {t("settings.addRule")}
           </button>
         </Section>
 
         {/* WebDAV Servers */}
-        <Section title="WebDAV Servers">
+        <Section title={t("settings.webdavServers")}>
           {config.webdavServer.length === 0 && (
             <p className="text-sm text-gray-400 mb-4">
-              No WebDAV servers configured
+              {t("settings.noWebdav")}
             </p>
           )}
           {config.webdavServer.map((srv, wi) => (
@@ -548,7 +574,9 @@ export default function Settings() {
                 </span>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">Enabled</span>
+                    <span className="text-xs text-gray-500">
+                      {t("passwd.enabled")}
+                    </span>
                     <Toggle
                       checked={srv.enable}
                       onChange={(v) => updateWebdav(wi, "enable", v)}
@@ -564,25 +592,25 @@ export default function Settings() {
                     }}
                     className="text-red-500 hover:text-red-700 text-sm"
                   >
-                    Remove Server
+                    {t("settings.removeServer")}
                   </button>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 mb-3">
-                <Field label="Name">
+                <Field label={t("settings.name")}>
                   <Input
                     value={srv.name}
                     onChange={(v) => updateWebdav(wi, "name", v)}
                     placeholder="My WebDAV"
                   />
                 </Field>
-                <Field label="Host">
+                <Field label={t("settings.host")}>
                   <Input
                     value={srv.serverHost}
                     onChange={(v) => updateWebdav(wi, "serverHost", v)}
                   />
                 </Field>
-                <Field label="Port">
+                <Field label={t("settings.port")}>
                   <Input
                     value={srv.serverPort}
                     onChange={(v) =>
@@ -596,11 +624,13 @@ export default function Settings() {
                     checked={srv.https}
                     onChange={(v) => updateWebdav(wi, "https", v)}
                   />
-                  <span className="text-sm text-gray-700">HTTPS</span>
+                  <span className="text-sm text-gray-700">
+                    {t("settings.https")}
+                  </span>
                 </div>
               </div>
               <p className="text-sm font-medium text-gray-600 mb-2">
-                Encryption Rules
+                {t("settings.encRules")}
               </p>
               {srv.passwdList.map((info, pi) => (
                 <PasswdInfoForm
@@ -617,7 +647,7 @@ export default function Settings() {
                 onClick={() => addWebdavPasswd(wi)}
                 className="w-full py-2 border-2 border-dashed rounded-lg text-sm text-gray-500 hover:text-blue-500 hover:border-blue-400"
               >
-                + Add Rule
+                {t("settings.addRule")}
               </button>
             </div>
           ))}
@@ -631,7 +661,7 @@ export default function Settings() {
             }
             className="w-full py-2 border-2 border-dashed rounded-lg text-sm text-gray-500 hover:text-blue-500 hover:border-blue-400"
           >
-            + Add WebDAV Server
+            {t("settings.addWebdav")}
           </button>
         </Section>
 
@@ -646,10 +676,10 @@ export default function Settings() {
             className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 disabled:opacity-50 font-medium"
           >
             {restarting
-              ? "Server restarting..."
+              ? t("settings.restarting")
               : saving
-                ? "Saving..."
-                : "Save Settings"}
+                ? t("settings.saving")
+                : t("settings.save")}
           </button>
         </div>
       </div>

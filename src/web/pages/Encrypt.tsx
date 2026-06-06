@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useI18n } from "../i18n/index.tsx";
 
 interface ProgressEvent {
   type: "start" | "progress" | "done" | "error";
@@ -29,6 +30,7 @@ function Field({
 }
 
 export default function Encrypt() {
+  const { t } = useI18n();
   const [inputDir, setInputDir] = useState("");
   const [outputDir, setOutputDir] = useState("");
 
@@ -67,7 +69,7 @@ export default function Encrypt() {
 
   const handleStart = () => {
     if (!inputDir || !outputDir || !password) {
-      setError("Please fill in all fields");
+      setError(t("encrypt.fillAll"));
       return;
     }
     setError("");
@@ -98,13 +100,13 @@ export default function Encrypt() {
     })
       .then((resp) => {
         if (resp.status === 401) {
-          setError("Unauthorized — please login again");
+          setError(t("encrypt.unauthorized"));
           setRunning(false);
           setPhase("idle");
           return null;
         }
         if (!resp.ok || !resp.body) {
-          setError("Server error");
+          setError(t("encrypt.serverError"));
           setRunning(false);
           setPhase("idle");
           return null;
@@ -143,7 +145,7 @@ export default function Encrypt() {
         processStream();
       })
       .catch(() => {
-        setError("Network error");
+        setError(t("common.networkError"));
         setRunning(false);
         setPhase("idle");
       });
@@ -180,7 +182,7 @@ export default function Encrypt() {
         });
         break;
       case "error":
-        setError(event.error ?? "Unknown error");
+        setError(event.error ?? t("encrypt.unknownError"));
         setRunning(false);
         setPhase("idle");
         break;
@@ -193,16 +195,20 @@ export default function Encrypt() {
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-3xl mx-auto px-4">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Local Encryption</h1>
+          <h1 className="text-2xl font-bold text-gray-800">
+            {t("encrypt.title")}
+          </h1>
           <Link to="/home" className="text-blue-500 hover:underline text-sm">
-            Back to Home
+            {t("common.backToHome")}
           </Link>
         </div>
 
         {/* Config Form */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-            {mode === "encrypt" ? "Encryption" : "Decryption"} Settings
+            {mode === "encrypt"
+              ? t("encrypt.encSettings")
+              : t("encrypt.decSettings")}
           </h2>
           <div className="flex gap-2 mb-4">
             <button
@@ -215,7 +221,7 @@ export default function Encrypt() {
                   : "bg-gray-200 text-gray-600 hover:bg-gray-300"
               } disabled:opacity-50`}
             >
-              Encrypt
+              {t("encrypt.encrypt")}
             </button>
             <button
               type="button"
@@ -227,10 +233,10 @@ export default function Encrypt() {
                   : "bg-gray-200 text-gray-600 hover:bg-gray-300"
               } disabled:opacity-50`}
             >
-              Decrypt
+              {t("encrypt.decrypt")}
             </button>
           </div>
-          <Field label="Input Folder">
+          <Field label={t("encrypt.inputFolder")}>
             <input
               type="text"
               value={inputDir}
@@ -240,7 +246,7 @@ export default function Encrypt() {
               className="w-full px-3 py-2 border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100"
             />
           </Field>
-          <Field label="Output Folder">
+          <Field label={t("encrypt.outputFolder")}>
             <input
               type="text"
               value={outputDir}
@@ -251,17 +257,17 @@ export default function Encrypt() {
             />
           </Field>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Password">
+            <Field label={t("encrypt.password")}>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Encryption password"
+                placeholder={t("encrypt.passwordPlaceholder")}
                 disabled={running}
                 className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100"
               />
             </Field>
-            <Field label="Algorithm">
+            <Field label={t("encrypt.algorithm")}>
               <select
                 value={encType}
                 onChange={(e) => setEncType(e.target.value)}
@@ -289,7 +295,9 @@ export default function Encrypt() {
                 }`}
               />
             </button>
-            <span className="text-sm text-gray-700">Encrypt Filename</span>
+            <span className="text-sm text-gray-700">
+              {t("encrypt.encFilename")}
+            </span>
           </div>
           {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
           <button
@@ -300,11 +308,11 @@ export default function Encrypt() {
           >
             {running
               ? mode === "encrypt"
-                ? "Encrypting..."
-                : "Decrypting..."
+                ? t("encrypt.encrypting")
+                : t("encrypt.decrypting")
               : mode === "encrypt"
-                ? "Start Encryption"
-                : "Start Decryption"}
+                ? t("encrypt.startEncrypt")
+                : t("encrypt.startDecrypt")}
           </button>
         </div>
 
@@ -312,14 +320,14 @@ export default function Encrypt() {
         {(phase === "running" || phase === "done") && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-              Progress
+              {t("encrypt.progress")}
             </h2>
 
             {/* Progress bar */}
             <div className="mb-4">
               <div className="flex justify-between text-sm text-gray-600 mb-1">
                 <span>
-                  {current} / {total} files
+                  {current} / {total} {t("encrypt.files")}
                 </span>
                 <span>{progress}%</span>
               </div>
@@ -338,7 +346,8 @@ export default function Encrypt() {
             {/* Current file */}
             {phase === "running" && currentFile && (
               <p className="text-sm text-gray-600 mb-4">
-                <span className="font-medium">Current:</span> {currentFile}
+                <span className="font-medium">{t("encrypt.current")}</span>{" "}
+                {currentFile}
                 <span
                   className={`ml-2 text-xs ${
                     fileStatus === "done"
@@ -365,12 +374,15 @@ export default function Encrypt() {
                 <p className="font-medium">
                   {summary.failed === 0
                     ? mode === "encrypt"
-                      ? "All files encrypted successfully!"
-                      : "All files decrypted successfully!"
-                    : `Completed with ${summary.failed} error(s)`}
+                      ? t("encrypt.allEncrypted")
+                      : t("encrypt.allDecrypted")
+                    : t("encrypt.completedWithErrors", {
+                        count: String(summary.failed),
+                      })}
                 </p>
                 <p className="text-sm">
-                  Success: {summary.success} / Failed: {summary.failed} / Total:{" "}
+                  {t("encrypt.success")} {summary.success} /{" "}
+                  {t("encrypt.failed")} {summary.failed} / {t("encrypt.total")}{" "}
                   {summary.success + summary.failed}
                 </p>
               </div>
@@ -386,10 +398,10 @@ export default function Encrypt() {
                         #
                       </th>
                       <th className="text-left px-3 py-2 font-medium text-gray-600">
-                        File
+                        {t("encrypt.file")}
                       </th>
                       <th className="text-left px-3 py-2 font-medium text-gray-600">
-                        Status
+                        {t("encrypt.status")}
                       </th>
                     </tr>
                   </thead>

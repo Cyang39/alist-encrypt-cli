@@ -63,6 +63,9 @@ function buildRoutes(): Route[] {
     route("POST", "/@console/api/restart", handleRestart),
     // /@console/api/cwd
     route("GET", "/@console/api/cwd", handleCwd),
+    // /@console/api/lang
+    route("GET", "/@console/api/lang", handleGetLang),
+    route("POST", "/@console/api/lang", handleSaveLang),
     // /@console/api/encrypt
     route("POST", "/@console/api/encrypt", handleEncrypt),
     // /api/fs/get
@@ -297,6 +300,39 @@ async function handleSaveSettings(request: Request): Promise<Response> {
 
 function handleCwd(): Response {
   return Response.json({ success: true, cwd: process.cwd() });
+}
+
+function handleGetLang(): Response {
+  const config = getConfig();
+  return Response.json({ success: true, lang: config.web?.lang ?? "en" });
+}
+
+async function handleSaveLang(request: Request): Promise<Response> {
+  if (!(await verifyToken(request))) {
+    return Response.json(
+      { success: false, message: "Unauthorized" },
+      { status: 401 },
+    );
+  }
+  try {
+    const body = (await request.json()) as { lang?: string };
+    if (!body.lang) {
+      return Response.json(
+        { success: false, message: "Missing lang" },
+        { status: 400 },
+      );
+    }
+    const config = getConfig();
+    config.web = { ...config.web, lang: body.lang };
+    saveConfig(config);
+    logger.info(`[lang] Language saved: ${body.lang}`);
+    return Response.json({ success: true });
+  } catch {
+    return Response.json(
+      { success: false, message: "Invalid request" },
+      { status: 400 },
+    );
+  }
 }
 
 async function handleRestart(request: Request): Promise<Response> {
