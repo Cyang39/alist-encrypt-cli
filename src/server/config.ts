@@ -73,26 +73,15 @@ export function getConfig(): ServerConfig {
 }
 
 /**
- * 展开 encPath：为每个路径加上 /d、/p、/dav 前缀，
- * 以便后续路由匹配。
+ * 初始化 alist 配置：清理旧的运行时字段。
+ * encPath 保持用户原始输入（如 private/encrypt2/*），
+ * 路径展开（加 /d /p /dav 前缀）在 pathFindPasswd 匹配时动态完成。
  */
 export function initAlistConfig(
   alistServer: ServerConfig["alistServer"],
 ): void {
   for (const passwdInfo of alistServer.passwdList) {
-    // 保存原始路径（无前缀），用于无前缀路径匹配
-    passwdInfo.origEncPath = [...passwdInfo.encPath];
-    const expanded: string[] = [];
-    for (const p of passwdInfo.encPath) {
-      // 如果已经有前缀则跳过
-      if (p.startsWith("/d/") || p.startsWith("/p/") || p.startsWith("/dav/")) {
-        expanded.push(p);
-        continue;
-      }
-      expanded.push(`/d${p.startsWith("/") ? "" : "/"}${p}`);
-      expanded.push(`/p${p.startsWith("/") ? "" : "/"}${p}`);
-      expanded.push(`/dav${p.startsWith("/") ? "" : "/"}${p}`);
-    }
-    passwdInfo.encPath = expanded;
+    // 清理旧版本遗留的 origEncPath
+    delete passwdInfo.origEncPath;
   }
 }

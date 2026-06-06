@@ -1,5 +1,8 @@
 import crypto from "node:crypto";
+import { createReadStream, createWriteStream } from "node:fs";
+import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
+import { pipeline } from "node:stream/promises";
 
 import jwt from "@tsndr/cloudflare-worker-jwt";
 import FlowEnc from "@/libs/crypto/flow-enc.js";
@@ -57,6 +60,8 @@ function buildRoutes(): Route[] {
     route("POST", "/@console/api/settings", handleSaveSettings),
     // /@console/api/restart
     route("POST", "/@console/api/restart", handleRestart),
+    // /@console/api/encrypt
+    route("POST", "/@console/api/encrypt", handleEncrypt),
     // /api/fs/get
     route("*", "/api/fs/get", handleFsGet),
     // /api/fs/list
@@ -270,15 +275,6 @@ async function handleSaveSettings(request: Request): Promise<Response> {
         }
       }
     }
-    // Preserve origEncPath
-    for (const p of newConfig.alistServer.passwdList) {
-      delete p.origEncPath;
-    }
-    for (const w of newConfig.webdavServer) {
-      for (const p of w.passwdList) {
-        delete p.origEncPath;
-      }
-    }
     saveConfig(newConfig);
     initAlistConfig(newConfig.alistServer);
     for (const w of newConfig.webdavServer) {
@@ -313,6 +309,167 @@ async function handleRestart(request: Request): Promise<Response> {
       { status: 500 },
     );
   }
+}
+
+async function collectFiles(dir: string): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await collectFiles(fullPath)));
+    } else if (entry.isFile()) {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
+async function handleEncrypt(request: Request): Promise<Response> {
+  if (!(await verifyToken(request))) {
+    return Response.json(
+      { success: false, message: "Unauthorized" },
+      { status: 401 },
+    );
+  }
+
+  const body = (await request.json()) as {
+    inputDir?: string;
+    outputDir?: string;
+    password?: string;
+    encType?: string;
+    encName?: boolean;
+  };
+
+  if (!body.inputDir || !body.outputDir || !body.password) {
+    return Response.json(
+      { success: false, message: "Missing inputDir, outputDir, or password" },
+      { status: 400 },
+    );
+  }
+
+  const inputDir = body.inputDir;
+  const outputDir = body.outputDir;
+  const password = body.password;
+  const encName = body.encName ?? false;
+
+  // Validate input directory exists
+  try {
+    const s = await stat(inputDir);
+    if (!s.isDirectory()) {
+      return Response.json(
+        { success: false, message: "Input path is not a directory" },
+        { status: 400 },
+      );
+    }
+  } catch {
+    return Response.json(
+      { success: false, message: "Input directory not found" },
+      { status: 400 },
+    );
+  }
+
+  const encType = body.encType ?? "aesctr";
+
+  // SSE stream
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (data: Record<string, unknown>) => {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+      };
+
+      try {
+        const files = await collectFiles(inputDir);
+        const total = files.length;
+
+        if (total === 0) {
+          send({ type: "done", total: 0, success: 0, failed: 0 });
+          controller.close();
+          return;
+        }
+
+        send({
+          type: "start",
+          total,
+          files: files.map((f) => path.relative(inputDir, f)),
+        });
+
+        let success = 0;
+        let failed = 0;
+
+        for (let i = 0; i < files.length; i++) {
+          const filePath = files[i];
+          const relativePath = path.relative(inputDir, filePath);
+          let outputPath = path.join(outputDir, relativePath);
+
+          // Encrypt filename if enabled
+          if (encName) {
+            const dir = path.dirname(relativePath);
+            const ext = path.extname(relativePath);
+            const base = path.basename(relativePath, ext);
+            const encBase = encodeName(password, encType as EncType, base);
+            outputPath = path.join(outputDir, dir, encBase + ext);
+          }
+
+          send({
+            type: "progress",
+            current: i + 1,
+            total,
+            file: relativePath,
+            status: "encrypting",
+          });
+
+          try {
+            const fileStats = await stat(filePath);
+            const sizeSalt = fileStats.size;
+            const flowEnc = new FlowEnc(password, encType as EncType, sizeSalt);
+
+            // Ensure output directory exists
+            const { mkdirSync } = await import("node:fs");
+            mkdirSync(path.dirname(outputPath), { recursive: true });
+
+            const input = createReadStream(filePath);
+            const output = createWriteStream(outputPath);
+            await pipeline(input, flowEnc.encryptTransform(), output);
+
+            success++;
+            send({
+              type: "progress",
+              current: i + 1,
+              total,
+              file: relativePath,
+              status: "done",
+            });
+          } catch (err) {
+            failed++;
+            send({
+              type: "progress",
+              current: i + 1,
+              total,
+              file: relativePath,
+              status: "error",
+              error: String(err),
+            });
+          }
+        }
+
+        send({ type: "done", total, success, failed });
+      } catch (err) {
+        send({ type: "error", error: String(err) });
+      }
+
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }
 
 async function handleRedirect(
@@ -371,11 +528,7 @@ async function handleRedirect(
   });
 
   let decryptTransform = null;
-  if (
-    passwdInfo.enable &&
-    (pathExec(passwdInfo.encPath, lastUrl) ||
-      (passwdInfo.origEncPath && pathExec(passwdInfo.origEncPath, lastUrl)))
-  ) {
+  if (passwdInfo.enable && pathExec(passwdInfo.encPath, lastUrl)) {
     decryptTransform = flowEnc.decryptTransform();
   }
   if (decode) {
@@ -383,7 +536,7 @@ async function handleRedirect(
   }
 
   logger.debug(
-    `[redirect] decrypt: ${decryptTransform ? "YES" : "NO"} (enable=${passwdInfo.enable}, pathExec=${pathExec(passwdInfo.encPath, lastUrl) || (passwdInfo.origEncPath && pathExec(passwdInfo.origEncPath, lastUrl)) ? "match" : "no-match"})`,
+    `[redirect] decrypt: ${decryptTransform ? "YES" : "NO"} (enable=${passwdInfo.enable}, pathExec=${pathExec(passwdInfo.encPath, lastUrl) ? "match" : "no-match"})`,
   );
 
   try {

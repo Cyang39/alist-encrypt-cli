@@ -8,6 +8,7 @@ import {
   Routes,
   useNavigate,
 } from "react-router-dom";
+import Encrypt from "./pages/Encrypt.js";
 import Settings from "./pages/Settings.js";
 
 function Login() {
@@ -25,7 +26,7 @@ function Login() {
       });
       const data = await resp.json();
       if (data.success) {
-        localStorage.setItem("token", data.token);
+        localStorage.setItem("console_token", data.token);
         navigate("/home");
       } else {
         setError(data.message || "Login failed");
@@ -60,7 +61,7 @@ function Login() {
 
 function Home() {
   const handleLogout = () => {
-    localStorage.removeItem("token");
+    localStorage.removeItem("console_token");
   };
 
   return (
@@ -68,8 +69,14 @@ function Home() {
       <h1 className="text-2xl font-bold text-gray-800 mb-4">Home</h1>
       <p className="text-gray-600 mb-6">Welcome to alist-encrypt console</p>
       <Link
-        to="/settings"
+        to="/encrypt"
         className="block w-full bg-blue-500 text-white py-2 rounded-lg text-center hover:bg-blue-600 mb-3"
+      >
+        Local Encryption
+      </Link>
+      <Link
+        to="/settings"
+        className="block w-full bg-gray-500 text-white py-2 rounded-lg text-center hover:bg-gray-600 mb-3"
       >
         Settings
       </Link>
@@ -85,7 +92,7 @@ function Home() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("console_token");
   if (!token) {
     return <Navigate to="/login" replace />;
   }
@@ -110,6 +117,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Settings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/encrypt"
+          element={
+            <ProtectedRoute>
+              <Encrypt />
             </ProtectedRoute>
           }
         />

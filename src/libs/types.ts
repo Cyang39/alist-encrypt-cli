@@ -10,8 +10,6 @@ export interface PasswdInfo {
   encName: boolean;
   encSuffix: string;
   encPath: string[];
-  /** 展开前的原始路径（不含 /d /p /dav 前缀），用于无前缀路径匹配 */
-  origEncPath?: string[];
 }
 
 export interface ServerConfig {

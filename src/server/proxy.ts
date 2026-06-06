@@ -62,8 +62,14 @@ export async function httpProxy(
   // 构建上游请求头
   const headers = new Headers(request.headers);
   const url = new URL(urlAddr);
-  if (removeHost) headers.delete("host");
-  else headers.set("host", url.host);
+  const isConsoleReq = new URL(request.url).pathname.startsWith("/@console");
+  if (removeHost) {
+    headers.delete("host");
+    // 只移除 console 自己的 JWT token，保留 alist 的 Authorization
+    if (isConsoleReq) headers.delete("authorization");
+  } else {
+    headers.set("host", url.host);
+  }
 
   // 读取并可能加密请求体
   let upstreamBody: ArrayBuffer | ReadableStream | null = null;
@@ -190,6 +196,8 @@ export async function httpClient(
 ): Promise<{ status: number; headers: Headers; body: string }> {
   const headers = new Headers(request.headers);
   headers.delete("host");
+  const isConsoleReq = new URL(request.url).pathname.startsWith("/@console");
+  if (isConsoleReq) headers.delete("authorization");
 
   const url = new URL(urlAddr);
   headers.set("host", url.host);

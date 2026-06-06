@@ -22,10 +22,9 @@ export function pathExec(
   encPath: string[],
   url: string,
 ): RegExpExecArray | null {
-  for (const filePath of encPath) {
-    // 确保路径以 / 开头以匹配 URL
-    const normalized = filePath.startsWith("/") ? filePath : `/${filePath}`;
-    const result = globToRegex(normalized).exec(url);
+  const expanded = expandEncPath(encPath);
+  for (const filePath of expanded) {
+    const result = globToRegex(filePath).exec(url);
     if (result) return result;
   }
   return null;
@@ -97,6 +96,29 @@ export function decodeFolderName(
   return { folderEncType, folderPasswd };
 }
 
+/**
+ * 将用户配置的 encPath（如 "private/encrypt2/*"）展开为匹配用路径列表：
+ * 加上 /d/ /p/ /dav/ 前缀，同时保留原始路径用于无前缀匹配。
+ */
+function expandEncPath(encPath: string[]): string[] {
+  const expanded: string[] = [];
+  for (const p of encPath) {
+    // 如果已经有前缀则直接使用
+    if (p.startsWith("/d/") || p.startsWith("/p/") || p.startsWith("/dav/")) {
+      expanded.push(p);
+      continue;
+    }
+    // 加前缀的版本（匹配 /d/ /p/ /dav/ 代理路径）
+    expanded.push(`/d${p.startsWith("/") ? "" : "/"}${p}`);
+    expanded.push(`/p${p.startsWith("/") ? "" : "/"}${p}`);
+    expanded.push(`/dav${p.startsWith("/") ? "" : "/"}${p}`);
+    // 原始路径（匹配 alist UI 直接访问，确保以 / 开头）
+    const normalized = p.startsWith("/") ? p : `/${p}`;
+    expanded.push(normalized);
+  }
+  return expanded;
+}
+
 export function pathFindPasswd(
   passwdList: PasswdInfo[],
   url: string,
@@ -105,22 +127,11 @@ export function pathFindPasswd(
   | Record<string, never> {
   for (const passwdInfo of passwdList) {
     if (!passwdInfo.enable) continue;
-    // 先检查带前缀的路径（/d/ /p/ /dav/）
-    for (const filePath of passwdInfo.encPath) {
+    const expandedPaths = expandEncPath(passwdInfo.encPath);
+    for (const filePath of expandedPaths) {
       const result = globToRegex(filePath).exec(url);
       if (result) {
         return matchPasswd(passwdInfo, url, result);
-      }
-    }
-    // 再检查不带前缀的原始路径（用于 alist UI 直接访问）
-    if (passwdInfo.origEncPath) {
-      for (const filePath of passwdInfo.origEncPath) {
-        // 确保路径以 / 开头以匹配 URL
-        const normalized = filePath.startsWith("/") ? filePath : `/${filePath}`;
-        const result = globToRegex(normalized).exec(url);
-        if (result) {
-          return matchPasswd(passwdInfo, url, result);
-        }
       }
     }
   }

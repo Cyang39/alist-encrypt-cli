@@ -44,7 +44,7 @@ interface ServerConfig {
 }
 
 function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("console_token");
   return {
     "content-type": "application/json",
     authorization: token ? `Bearer ${token}` : "",
