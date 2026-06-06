@@ -3,8 +3,13 @@ import path from "node:path";
 
 import jwt from "@tsndr/cloudflare-worker-jwt";
 import FlowEnc from "@/libs/crypto/flow-enc.js";
-import type { PasswdInfo } from "@/libs/types.js";
-import { getConfig, initAlistConfig, loadConfig } from "./config.js";
+import type { PasswdInfo, ServerConfig } from "@/libs/types.js";
+import {
+  getConfig,
+  initAlistConfig,
+  loadConfig,
+  saveConfig,
+} from "./config.js";
 import logger, { setFileLog } from "./logger.js";
 import { httpClient, httpProxy } from "./proxy.js";
 import * as storage from "./storage.js";
@@ -47,6 +52,11 @@ function buildRoutes(): Route[] {
     route("*", "/redirect/([^/]+)", handleRedirect),
     // /@console/api/login
     route("POST", "/@console/api/login", handleLogin),
+    // /@console/api/settings
+    route("GET", "/@console/api/settings", handleGetSettings),
+    route("POST", "/@console/api/settings", handleSaveSettings),
+    // /@console/api/restart
+    route("POST", "/@console/api/restart", handleRestart),
     // /api/fs/get
     route("*", "/api/fs/get", handleFsGet),
     // /api/fs/list
@@ -188,6 +198,121 @@ export async function verifyToken(request: Request): Promise<boolean> {
   const config = getConfig();
   const jwtSecret = config.jwtSecret ?? "alist-encrypt-secret";
   return jwt.verify(token, jwtSecret);
+}
+
+async function handleGetSettings(request: Request): Promise<Response> {
+  if (!(await verifyToken(request))) {
+    return Response.json(
+      { success: false, message: "Unauthorized" },
+      { status: 401 },
+    );
+  }
+  const config = getConfig();
+  // Mask password in passwdList for security
+  const safeConfig = structuredClone(config);
+  for (const p of safeConfig.alistServer.passwdList) {
+    p.password = "******";
+  }
+  for (const w of safeConfig.webdavServer) {
+    for (const p of w.passwdList) {
+      p.password = "******";
+    }
+  }
+  return Response.json({ success: true, config: safeConfig });
+}
+
+async function handleSaveSettings(request: Request): Promise<Response> {
+  if (!(await verifyToken(request))) {
+    return Response.json(
+      { success: false, message: "Unauthorized" },
+      { status: 401 },
+    );
+  }
+  try {
+    const body = (await request.json()) as { config?: ServerConfig };
+    if (!body.config) {
+      return Response.json(
+        { success: false, message: "Missing config" },
+        { status: 400 },
+      );
+    }
+    const newConfig = body.config;
+    // Validate required fields
+    if (
+      !newConfig.alistServer?.serverHost ||
+      !newConfig.alistServer?.passwdList
+    ) {
+      return Response.json(
+        { success: false, message: "Invalid config: missing alistServer" },
+        { status: 400 },
+      );
+    }
+    // Restore masked passwords with current passwords
+    const currentConfig = getConfig();
+    for (const p of newConfig.alistServer.passwdList) {
+      if (p.password === "******") {
+        const orig = currentConfig.alistServer.passwdList.find(
+          (cp) => cp.describe === p.describe,
+        );
+        if (orig) p.password = orig.password;
+      }
+    }
+    for (const w of newConfig.webdavServer) {
+      const curW = currentConfig.webdavServer.find((cw) => cw.id === w.id);
+      if (curW) {
+        for (const p of w.passwdList) {
+          if (p.password === "******") {
+            const orig = curW.passwdList.find(
+              (cp) => cp.describe === p.describe,
+            );
+            if (orig) p.password = orig.password;
+          }
+        }
+      }
+    }
+    // Preserve origEncPath
+    for (const p of newConfig.alistServer.passwdList) {
+      delete p.origEncPath;
+    }
+    for (const w of newConfig.webdavServer) {
+      for (const p of w.passwdList) {
+        delete p.origEncPath;
+      }
+    }
+    saveConfig(newConfig);
+    initAlistConfig(newConfig.alistServer);
+    for (const w of newConfig.webdavServer) {
+      if (w.enable) {
+        initAlistConfig(w as Parameters<typeof initAlistConfig>[0]);
+      }
+    }
+    logger.info("[settings] Configuration saved and reloaded");
+    return Response.json({ success: true });
+  } catch {
+    return Response.json(
+      { success: false, message: "Invalid request body" },
+      { status: 400 },
+    );
+  }
+}
+
+async function handleRestart(request: Request): Promise<Response> {
+  if (!(await verifyToken(request))) {
+    return Response.json(
+      { success: false, message: "Unauthorized" },
+      { status: 401 },
+    );
+  }
+  try {
+    const result = restartServer();
+    return Response.json(result);
+  } catch (err) {
+    logger.error("[restart] Failed:", err);
+    return Response.json(
+      { success: false, message: "Restart failed" },
+      { status: 500 },
+    );
+  }
 }
 
 async function handleRedirect(
@@ -649,23 +774,9 @@ async function handleFsPutBack(request: Request): Promise<Response> {
 
 // ==================== 启动 ====================
 
-export async function startServer(port?: number): Promise<void> {
-  const appConfig = loadConfig();
-  initAlistConfig(appConfig.alistServer);
+let currentServer: ReturnType<typeof Bun.serve> | null = null;
 
-  for (const webdavConfig of appConfig.webdavServer) {
-    if (webdavConfig.enable) {
-      initAlistConfig(webdavConfig as Parameters<typeof initAlistConfig>[0]);
-    }
-  }
-
-  // 启用或禁用文件日志
-  setFileLog(appConfig.logFile === true);
-
-  const routes = buildRoutes();
-  const listenPort = port ?? appConfig.port;
-
-  // 打印配置信息
+function logConfig(listenPort: number, appConfig: ServerConfig): void {
   const { alistServer } = appConfig;
   logger.info("========== Configuration ==========");
   logger.info(`  Listen Port:    ${listenPort}`);
@@ -685,46 +796,99 @@ export async function startServer(port?: number): Promise<void> {
     logger.info(`  WebDAV Servers: ${appConfig.webdavServer.length}`);
   }
   logger.info("====================================");
+}
 
-  // 调试：显示路由表
+function buildFetchHandler(appConfig: ServerConfig) {
+  const routes = buildRoutes();
   for (const r of routes) {
     logger.info(`[route] ${r.method} ${r.pattern.source}`);
   }
+  return async (request: Request): Promise<Response> => {
+    const url = new URL(request.url);
+    logger.info(`[req] ${request.method} ${url.pathname}${url.search}`);
 
-  Bun.serve({
-    port: listenPort,
-    async fetch(request) {
-      const url = new URL(request.url);
-      logger.info(`[req] ${request.method} ${url.pathname}${url.search}`);
-
-      // 匹配路由
-      for (const r of routes) {
-        if (r.method !== "*" && r.method !== request.method) continue;
-        const match = url.pathname.match(r.pattern);
-        if (match) {
-          // preProxy 设置上下文（非重定向路由）
-          if (!r.pattern.source.startsWith("^/redirect")) {
-            preProxy(appConfig.alistServer, request, false);
-          }
-          try {
-            return await r.handler(request, match);
-          } catch (err) {
-            logger.error("route error:", request.method, url.pathname, err);
-            return Response.json(
-              { code: 500, message: "Internal Server Error" },
-              { status: 500 },
-            );
-          }
+    for (const r of routes) {
+      if (r.method !== "*" && r.method !== request.method) continue;
+      const match = url.pathname.match(r.pattern);
+      if (match) {
+        if (!r.pattern.source.startsWith("^/redirect")) {
+          preProxy(appConfig.alistServer, request, false);
+        }
+        try {
+          return await r.handler(request, match);
+        } catch (err) {
+          logger.error("route error:", request.method, url.pathname, err);
+          return Response.json(
+            { code: 500, message: "Internal Server Error" },
+            { status: 500 },
+          );
         }
       }
+    }
 
-      logger.info(`[404] no route matched: ${url.pathname}`);
-      return new Response("Not Found", { status: 404 });
-    },
+    logger.info(`[404] no route matched: ${url.pathname}`);
+    return new Response("Not Found", { status: 404 });
+  };
+}
+
+export async function startServer(port?: number): Promise<void> {
+  const appConfig = loadConfig();
+  initAlistConfig(appConfig.alistServer);
+
+  for (const webdavConfig of appConfig.webdavServer) {
+    if (webdavConfig.enable) {
+      initAlistConfig(webdavConfig as Parameters<typeof initAlistConfig>[0]);
+    }
+  }
+
+  setFileLog(appConfig.logFile === true);
+
+  const listenPort = port ?? appConfig.port;
+  logConfig(listenPort, appConfig);
+
+  currentServer = Bun.serve({
+    port: listenPort,
+    fetch: buildFetchHandler(appConfig),
   });
 
   logger.info(
     `🚀 alist-encrypt proxy server started: http://localhost:${listenPort}`,
   );
   logger.info(`Config dir: ~/.config/alist-encrypt/`);
+}
+
+export function restartServer(): {
+  success: boolean;
+  port?: number;
+  message?: string;
+} {
+  if (!currentServer) {
+    return { success: false, message: "No server running" };
+  }
+  const oldPort = currentServer.port;
+  currentServer.stop(true);
+  currentServer = null;
+
+  const appConfig = loadConfig();
+  initAlistConfig(appConfig.alistServer);
+  for (const webdavConfig of appConfig.webdavServer) {
+    if (webdavConfig.enable) {
+      initAlistConfig(webdavConfig as Parameters<typeof initAlistConfig>[0]);
+    }
+  }
+  setFileLog(appConfig.logFile === true);
+
+  const newPort = appConfig.port;
+  logConfig(newPort, appConfig);
+
+  currentServer = Bun.serve({
+    port: newPort,
+    fetch: buildFetchHandler(appConfig),
+  });
+
+  logger.info(
+    `🔄 Server restarted: http://localhost:${newPort} (was ${oldPort})`,
+  );
+
+  return { success: true, port: newPort };
 }

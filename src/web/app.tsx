@@ -8,6 +8,7 @@ import {
   Routes,
   useNavigate,
 } from "react-router-dom";
+import Settings from "./pages/Settings.js";
 
 function Login() {
   const [password, setPassword] = useState("");
@@ -65,11 +66,17 @@ function Home() {
   return (
     <div className="bg-white rounded-lg shadow-lg p-8 max-w-md">
       <h1 className="text-2xl font-bold text-gray-800 mb-4">Home</h1>
-      <p className="text-gray-600">Welcome to alist-encrypt console</p>
+      <p className="text-gray-600 mb-6">Welcome to alist-encrypt console</p>
+      <Link
+        to="/settings"
+        className="block w-full bg-blue-500 text-white py-2 rounded-lg text-center hover:bg-blue-600 mb-3"
+      >
+        Settings
+      </Link>
       <Link
         to="/login"
         onClick={handleLogout}
-        className="text-blue-500 hover:underline mt-4 block"
+        className="text-gray-500 hover:underline text-sm block text-center"
       >
         Logout
       </Link>
@@ -95,6 +102,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Home />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Settings />
             </ProtectedRoute>
           }
         />
