@@ -17,6 +17,7 @@ import logger, { setFileLog } from "./logger.js";
 import { httpClient, httpProxy } from "./proxy.js";
 import * as storage from "./storage.js";
 import {
+  decodeName,
   encodeName,
   globToRegex,
   pathExec,
@@ -60,6 +61,8 @@ function buildRoutes(): Route[] {
     route("POST", "/@console/api/settings", handleSaveSettings),
     // /@console/api/restart
     route("POST", "/@console/api/restart", handleRestart),
+    // /@console/api/cwd
+    route("GET", "/@console/api/cwd", handleCwd),
     // /@console/api/encrypt
     route("POST", "/@console/api/encrypt", handleEncrypt),
     // /api/fs/get
@@ -292,6 +295,10 @@ async function handleSaveSettings(request: Request): Promise<Response> {
   }
 }
 
+function handleCwd(): Response {
+  return Response.json({ success: true, cwd: process.cwd() });
+}
+
 async function handleRestart(request: Request): Promise<Response> {
   if (!(await verifyToken(request))) {
     return Response.json(
@@ -339,6 +346,7 @@ async function handleEncrypt(request: Request): Promise<Response> {
     password?: string;
     encType?: string;
     encName?: boolean;
+    mode?: string;
   };
 
   if (!body.inputDir || !body.outputDir || !body.password) {
@@ -352,6 +360,7 @@ async function handleEncrypt(request: Request): Promise<Response> {
   const outputDir = body.outputDir;
   const password = body.password;
   const encName = body.encName ?? false;
+  const mode = body.mode === "decrypt" ? "decrypt" : "encrypt";
 
   // Validate input directory exists
   try {
@@ -403,13 +412,20 @@ async function handleEncrypt(request: Request): Promise<Response> {
           const relativePath = path.relative(inputDir, filePath);
           let outputPath = path.join(outputDir, relativePath);
 
-          // Encrypt filename if enabled
+          // Encrypt/decrypt filename if enabled
           if (encName) {
             const dir = path.dirname(relativePath);
             const ext = path.extname(relativePath);
             const base = path.basename(relativePath, ext);
-            const encBase = encodeName(password, encType as EncType, base);
-            outputPath = path.join(outputDir, dir, encBase + ext);
+            if (mode === "encrypt") {
+              const encBase = encodeName(password, encType as EncType, base);
+              outputPath = path.join(outputDir, dir, encBase + ext);
+            } else {
+              const decoded = decodeName(password, encType as EncType, base);
+              if (decoded) {
+                outputPath = path.join(outputDir, dir, decoded + ext);
+              }
+            }
           }
 
           send({
@@ -417,7 +433,7 @@ async function handleEncrypt(request: Request): Promise<Response> {
             current: i + 1,
             total,
             file: relativePath,
-            status: "encrypting",
+            status: mode === "encrypt" ? "encrypting" : "decrypting",
           });
 
           try {
@@ -431,7 +447,11 @@ async function handleEncrypt(request: Request): Promise<Response> {
 
             const input = createReadStream(filePath);
             const output = createWriteStream(outputPath);
-            await pipeline(input, flowEnc.encryptTransform(), output);
+            const transform =
+              mode === "encrypt"
+                ? flowEnc.encryptTransform()
+                : flowEnc.decryptTransform();
+            await pipeline(input, transform, output);
 
             success++;
             send({

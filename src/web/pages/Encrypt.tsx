@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 interface ProgressEvent {
@@ -31,7 +31,21 @@ function Field({
 export default function Encrypt() {
   const [inputDir, setInputDir] = useState("");
   const [outputDir, setOutputDir] = useState("");
+
+  useEffect(() => {
+    fetch("/@console/api/cwd")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.cwd) {
+          const sep = data.cwd.includes("\\") ? "\\" : "/";
+          setInputDir(`${data.cwd}${sep}input`);
+          setOutputDir(`${data.cwd}${sep}output`);
+        }
+      })
+      .catch(() => {});
+  }, []);
   const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"encrypt" | "decrypt">("encrypt");
   const [encType, setEncType] = useState("aesctr");
   const [encName, setEncName] = useState(false);
   const [running, setRunning] = useState(false);
@@ -73,7 +87,14 @@ export default function Encrypt() {
         "content-type": "application/json",
         authorization: token ? `Bearer ${token}` : "",
       },
-      body: JSON.stringify({ inputDir, outputDir, password, encType, encName }),
+      body: JSON.stringify({
+        inputDir,
+        outputDir,
+        password,
+        encType,
+        encName,
+        mode,
+      }),
     })
       .then((resp) => {
         if (resp.status === 401) {
@@ -181,8 +202,34 @@ export default function Encrypt() {
         {/* Config Form */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-            Encryption Settings
+            {mode === "encrypt" ? "Encryption" : "Decryption"} Settings
           </h2>
+          <div className="flex gap-2 mb-4">
+            <button
+              type="button"
+              onClick={() => !running && setMode("encrypt")}
+              disabled={running}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                mode === "encrypt"
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+              } disabled:opacity-50`}
+            >
+              Encrypt
+            </button>
+            <button
+              type="button"
+              onClick={() => !running && setMode("decrypt")}
+              disabled={running}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                mode === "decrypt"
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+              } disabled:opacity-50`}
+            >
+              Decrypt
+            </button>
+          </div>
           <Field label="Input Folder">
             <input
               type="text"
@@ -251,7 +298,13 @@ export default function Encrypt() {
             disabled={running}
             className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 disabled:opacity-50 font-medium"
           >
-            {running ? "Encrypting..." : "Start Encryption"}
+            {running
+              ? mode === "encrypt"
+                ? "Encrypting..."
+                : "Decrypting..."
+              : mode === "encrypt"
+                ? "Start Encryption"
+                : "Start Decryption"}
           </button>
         </div>
 
@@ -311,7 +364,9 @@ export default function Encrypt() {
               >
                 <p className="font-medium">
                   {summary.failed === 0
-                    ? "All files encrypted successfully!"
+                    ? mode === "encrypt"
+                      ? "All files encrypted successfully!"
+                      : "All files decrypted successfully!"
                     : `Completed with ${summary.failed} error(s)`}
                 </p>
                 <p className="text-sm">
@@ -352,7 +407,8 @@ export default function Encrypt() {
                                 ? "text-green-600"
                                 : item.status === "error"
                                   ? "text-red-600"
-                                  : item.status === "encrypting"
+                                  : item.status === "encrypting" ||
+                                      item.status === "decrypting"
                                     ? "text-blue-600"
                                     : "text-gray-400"
                             }`}
