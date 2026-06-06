@@ -9,6 +9,12 @@ const zh: Record<TranslationKeys, string> = {
   "common.on": "开",
   "common.off": "关",
 
+  // Sidebar
+  "sidebar.home": "首页",
+  "sidebar.encrypt": "本地加密",
+  "sidebar.settings": "设置",
+  "sidebar.logout": "退出登录",
+
   // Login
   "login.title": "登录",
   "login.placeholder": "请输入密码",

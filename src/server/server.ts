@@ -104,7 +104,6 @@ interface ProxyContext {
 }
 
 const ctx = new Map<Request, ProxyContext>();
-const config = getConfig();
 
 function setCtx(request: Request, data: ProxyContext): void {
   ctx.set(request, data);
@@ -613,6 +612,7 @@ async function handleProxy(request: Request): Promise<Response> {
   if (!proxyCtx) {
     return new Response("no context", { status: 500 });
   }
+  const config = getConfig();
 
   const range = request.headers.get("range");
   const start = range
@@ -818,6 +818,7 @@ async function handleProxy(request: Request): Promise<Response> {
 async function handleFsGet(request: Request): Promise<Response> {
   const c = getCtx(request);
   if (!c) return new Response("no context", { status: 500 });
+  const config = getConfig();
 
   const body = (await request.json()) as Record<string, unknown>;
   let filePath = body.path as string;
@@ -882,6 +883,7 @@ async function handleFsGet(request: Request): Promise<Response> {
 async function handleFsList(request: Request): Promise<Response> {
   const c = getCtx(request);
   if (!c) return new Response("no context", { status: 500 });
+  const config = getConfig();
 
   const body = (await request.json()) as Record<string, unknown>;
   const filePath = body.path as string;
@@ -1007,14 +1009,14 @@ function logConfig(listenPort: number, appConfig: ServerConfig): void {
   logger.info("====================================");
 }
 
-function buildFetchHandler(appConfig: ServerConfig) {
-  const routes = buildRoutes();
-  for (const r of routes) {
-    logger.info(`[route] ${r.method} ${r.pattern.source}`);
-  }
+function buildFetchHandler(_appConfig: ServerConfig) {
   return async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
     logger.info(`[req] ${request.method} ${url.pathname}${url.search}`);
+
+    // 每次请求动态获取路由，确保配置变更后立即生效
+    const routes = buildRoutes();
+    const appConfig = getConfig();
 
     for (const r of routes) {
       if (r.method !== "*" && r.method !== request.method) continue;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { type Lang, useI18n } from "../i18n/index.tsx";
 
 interface PasswdInfo {
@@ -351,7 +351,7 @@ export default function Settings() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="p-8 flex items-center justify-center">
         <p className="text-gray-500">{t("common.loading")}</p>
       </div>
     );
@@ -359,13 +359,8 @@ export default function Settings() {
 
   if (!config) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md">
-          <p className="text-red-500">{t("common.failedToLoad")}</p>
-          <Link to="/home" className="text-blue-500 hover:underline mt-4 block">
-            {t("common.backToHome")}
-          </Link>
-        </div>
+      <div className="p-8">
+        <p className="text-red-500">{t("common.failedToLoad")}</p>
       </div>
     );
   }
@@ -430,16 +425,11 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      <div className="max-w-3xl mx-auto px-4">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">
-            {t("settings.title")}
-          </h1>
-          <Link to="/home" className="text-blue-500 hover:underline text-sm">
-            {t("common.backToHome")}
-          </Link>
-        </div>
+    <div className="p-8">
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-2xl font-bold text-gray-800 mb-6">
+          {t("settings.title")}
+        </h1>
 
         {/* Basic */}
         <Section title={t("settings.basic")}>

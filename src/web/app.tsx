@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   HashRouter,
-  Link,
   Navigate,
   Route,
   Routes,
   useNavigate,
 } from "react-router-dom";
 import { I18nProvider, type Lang, useI18n } from "./i18n/index.tsx";
+import AppLayout from "./layouts/AppLayout.tsx";
+import AuthLayout from "./layouts/AuthLayout.tsx";
 import Encrypt from "./pages/Encrypt.js";
 import Settings from "./pages/Settings.js";
 
@@ -65,45 +66,15 @@ function Login() {
 
 function Home() {
   const { t } = useI18n();
-  const handleLogout = () => {
-    localStorage.removeItem("console_token");
-  };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-8 max-w-md">
+    <div className="p-8">
       <h1 className="text-2xl font-bold text-gray-800 mb-4">
         {t("home.title")}
       </h1>
-      <p className="text-gray-600 mb-6">{t("home.welcome")}</p>
-      <Link
-        to="/encrypt"
-        className="block w-full bg-blue-500 text-white py-2 rounded-lg text-center hover:bg-blue-600 mb-3"
-      >
-        {t("home.localEncryption")}
-      </Link>
-      <Link
-        to="/settings"
-        className="block w-full bg-gray-500 text-white py-2 rounded-lg text-center hover:bg-gray-600 mb-3"
-      >
-        {t("home.settings")}
-      </Link>
-      <Link
-        to="/login"
-        onClick={handleLogout}
-        className="text-gray-500 hover:underline text-sm block text-center"
-      >
-        {t("home.logout")}
-      </Link>
+      <p className="text-gray-600">{t("home.welcome")}</p>
     </div>
   );
-}
-
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const token = localStorage.getItem("console_token");
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
-  return <>{children}</>;
 }
 
 function AppInner() {
@@ -149,32 +120,19 @@ function AppInner() {
     <I18nProvider defaultLang={lang} onLangChange={handleLangChange}>
       <HashRouter>
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/home"
-            element={
-              <ProtectedRoute>
-                <Home />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/encrypt"
-            element={
-              <ProtectedRoute>
-                <Encrypt />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          {/* Auth routes */}
+          <Route element={<AuthLayout />}>
+            <Route path="/login" element={<Login />} />
+          </Route>
+
+          {/* App routes with sidebar */}
+          <Route element={<AppLayout />}>
+            <Route path="/home" element={<Home />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/encrypt" element={<Encrypt />} />
+          </Route>
+
+          <Route path="*" element={<Navigate to="/home" replace />} />
         </Routes>
       </HashRouter>
     </I18nProvider>

@@ -7,6 +7,12 @@ const en = {
   "common.on": "ON",
   "common.off": "OFF",
 
+  // Sidebar
+  "sidebar.home": "Home",
+  "sidebar.encrypt": "Local Encryption",
+  "sidebar.settings": "Settings",
+  "sidebar.logout": "Logout",
+
   // Login
   "login.title": "Login",
   "login.placeholder": "Enter password",

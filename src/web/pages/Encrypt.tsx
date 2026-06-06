@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { useI18n } from "../i18n/index.tsx";
 
 interface ProgressEvent {
@@ -192,16 +191,11 @@ export default function Encrypt() {
   const progress = total > 0 ? Math.round((current / total) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      <div className="max-w-3xl mx-auto px-4">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">
-            {t("encrypt.title")}
-          </h1>
-          <Link to="/home" className="text-blue-500 hover:underline text-sm">
-            {t("common.backToHome")}
-          </Link>
-        </div>
+    <div className="p-8">
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-2xl font-bold text-gray-800 mb-6">
+          {t("encrypt.title")}
+        </h1>
 
         {/* Config Form */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
