@@ -63,7 +63,7 @@ if (command === "encrypt") {
     process.exit(1);
   }
 } else if (command === "server") {
-  const { startServer } = await import("./server/server.js");
+  const { startServer } = await import("./server/index.js");
   try {
     await startServer(
       values.port ? Number.parseInt(values.port, 10) : undefined,
