@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useI18n } from "../i18n/index.tsx";
 
 interface ProgressEvent {
-  type: "start" | "progress" | "done" | "error";
+  type: "start" | "progress" | "file_progress" | "done" | "error";
   total?: number;
   current?: number;
   file?: string;
@@ -11,6 +11,8 @@ interface ProgressEvent {
   success?: number;
   failed?: number;
   files?: string[];
+  bytesProcessed?: number;
+  fileSize?: number;
 }
 
 function Field({
@@ -64,6 +66,8 @@ export default function Encrypt() {
     success: number;
     failed: number;
   } | null>(null);
+  const [fileBytesProcessed, setFileBytesProcessed] = useState(0);
+  const [fileSize, setFileSize] = useState(0);
   const [error, setError] = useState("");
 
   const handleStart = () => {
@@ -162,6 +166,8 @@ export default function Encrypt() {
         setCurrent(event.current ?? 0);
         setCurrentFile(event.file ?? "");
         setFileStatus(event.status ?? "");
+        setFileBytesProcessed(0);
+        setFileSize(0);
         if (event.file) {
           setFileList((prev) =>
             prev.map((item) =>
@@ -171,6 +177,10 @@ export default function Encrypt() {
             ),
           );
         }
+        break;
+      case "file_progress":
+        setFileBytesProcessed(event.bytesProcessed ?? 0);
+        setFileSize(event.fileSize ?? 0);
         break;
       case "done":
         setPhase("done");
@@ -189,6 +199,15 @@ export default function Encrypt() {
   };
 
   const progress = total > 0 ? Math.round((current / total) * 100) : 0;
+  const fileProgress =
+    fileSize > 0 ? Math.round((fileBytesProcessed / fileSize) * 100) : 0;
+  const formatBytes = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024)
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  };
 
   return (
     <div className="p-8">
@@ -339,21 +358,40 @@ export default function Encrypt() {
 
             {/* Current file */}
             {phase === "running" && currentFile && (
-              <p className="text-sm text-gray-600 mb-4">
-                <span className="font-medium">{t("encrypt.current")}</span>{" "}
-                {currentFile}
-                <span
-                  className={`ml-2 text-xs ${
-                    fileStatus === "done"
-                      ? "text-green-600"
-                      : fileStatus === "error"
-                        ? "text-red-600"
-                        : "text-blue-600"
-                  }`}
-                >
-                  ({fileStatus})
-                </span>
-              </p>
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-1">
+                  <span className="font-medium">{t("encrypt.current")}</span>{" "}
+                  {currentFile}
+                  <span
+                    className={`ml-2 text-xs ${
+                      fileStatus === "done"
+                        ? "text-green-600"
+                        : fileStatus === "error"
+                          ? "text-red-600"
+                          : "text-blue-600"
+                    }`}
+                  >
+                    ({fileStatus})
+                  </span>
+                </p>
+                {fileSize > 0 && (
+                  <div className="mt-2">
+                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                      <span>
+                        {formatBytes(fileBytesProcessed)} /{" "}
+                        {formatBytes(fileSize)}
+                      </span>
+                      <span>{fileProgress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="h-2 rounded-full bg-blue-400 transition-all duration-200"
+                        style={{ width: `${fileProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Summary */}

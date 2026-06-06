@@ -1,6 +1,7 @@
 import { createReadStream, createWriteStream } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
+import { PassThrough } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { Context } from "hono";
 import FlowEnc from "@/libs/crypto/flow-enc.js";
@@ -118,6 +119,7 @@ export async function handleEncrypt(c: Context): Promise<Response> {
           try {
             const fileStats = await stat(filePath);
             const sizeSalt = fileStats.size;
+            const fileSize = fileStats.size;
             const flowEnc = new FlowEnc(password, encType as EncType, sizeSalt);
 
             const { mkdirSync } = await import("node:fs");
@@ -129,7 +131,23 @@ export async function handleEncrypt(c: Context): Promise<Response> {
               mode === "encrypt"
                 ? flowEnc.encryptTransform()
                 : flowEnc.decryptTransform();
-            await pipeline(input, transform, output);
+
+            // Track bytes through a PassThrough for progress reporting
+            let bytesProcessed = 0;
+            const progressStream = new PassThrough();
+            progressStream.on("data", (chunk: Buffer) => {
+              bytesProcessed += chunk.length;
+              send({
+                type: "file_progress",
+                current: i + 1,
+                total,
+                file: relativePath,
+                bytesProcessed,
+                fileSize,
+              });
+            });
+
+            await pipeline(input, transform, progressStream, output);
 
             success++;
             send({
