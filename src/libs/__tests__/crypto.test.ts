@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { Readable, type Transform, Writable } from "node:stream";
 import { decodeName, encodeName } from "../../server/utils/common.js";
-import AesCTR from "../aes-ctr.js";
-import CRCn from "../crc.js";
-import FlowEnc from "../flow-enc.js";
-import MixBase64 from "../mix-base64.js";
-import MixEnc from "../mix-enc.js";
-import Rc4Md5 from "../rc4-md5.js";
+import AesCTR from "../crypto/aes-ctr.js";
+import CRCn from "../crypto/crc.js";
+import FlowEnc from "../crypto/flow-enc.js";
+import MixBase64 from "../crypto/mix-base64.js";
+import MixEnc from "../crypto/mix-enc.js";
+import Rc4Md5 from "../crypto/rc4-md5.js";
 
 // 辅助函数：通过 Transform 流加密数据
 async function encryptViaTransform(

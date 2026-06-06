@@ -1,12 +1,12 @@
 import crypto from "node:crypto";
 import path from "node:path";
 
-import FlowEnc from "@/libs/flow-enc.js";
+import FlowEnc from "@/libs/crypto/flow-enc.js";
+import type { PasswdInfo } from "@/libs/types.js";
 import { getConfig, initAlistConfig, loadConfig } from "./config.js";
 import logger, { setFileLog } from "./logger.js";
 import { httpClient, httpProxy } from "./proxy.js";
 import * as storage from "./storage.js";
-import type { PasswdInfo } from "./types.js";
 import {
   encodeName,
   globToRegex,

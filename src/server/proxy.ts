@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
 import type { Transform } from "node:stream";
+import type { PasswdInfo } from "@/libs/types.js";
 import logger from "./logger.js";
 import * as storage from "./storage.js";
-import type { PasswdInfo } from "./types.js";
 
 /**
  * 将 Node.js Transform stream 包装为 Web ReadableStream 管道

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import type { ServerConfig } from "./types.js";
+import type { ServerConfig } from "@/libs/types.js";
 
 // 优先在执行目录下找 config 文件夹，否则使用 ~/.config/alist-encrypt
 const LOCAL_CONFIG_DIR = join(process.cwd(), "config");
