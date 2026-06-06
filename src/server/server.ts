@@ -14,6 +14,15 @@ import {
   pathFindPasswd,
 } from "./utils/common.js";
 
+// Web UI - 从 dist/index.html 导入（编译时嵌入）
+let consoleHtmlBody: string;
+try {
+  const mod = await import("../../dist/index.html", { with: { type: "text" } });
+  consoleHtmlBody = mod.default;
+} catch {
+  consoleHtmlBody = "<h1>Web UI not built. Run: bun run build:web</h1>";
+}
+
 // ==================== 路由定义 ====================
 
 interface Route {
@@ -47,6 +56,8 @@ function buildRoutes(): Route[] {
     route("GET", "/p/(.*)", handleProxy),
     // /dav/* WebDAV
     route("*", "/dav/(.*)", handleProxy),
+    // /@console Web UI
+    route("GET", "/@console", handleConsole),
     // catch-all 代理（glob → regex）
     {
       method: "*",
@@ -112,6 +123,12 @@ function preProxy(
 }
 
 // ==================== 路由处理 ====================
+
+async function handleConsole(_request: Request): Promise<Response> {
+  return new Response(consoleHtmlBody, {
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
+}
 
 async function handleRedirect(
   request: Request,
