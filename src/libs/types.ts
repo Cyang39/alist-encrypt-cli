@@ -18,6 +18,12 @@ export interface ServerConfig {
   port: number;
   /** 是否记录日志文件（默认关闭） */
   logFile?: boolean;
+  /** 控制台登录密码（默认 123456） */
+  password?: string;
+  /** JWT 签名密钥（默认 alist-encrypt-secret） */
+  jwtSecret?: string;
+  /** JWT 过期时间，如 "7d"、"24h"、"60m"（默认 7d） */
+  jwtExpiresIn?: string;
   alistServer: {
     name: string;
     path: string;

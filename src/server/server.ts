@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import path from "node:path";
 
+import jwt from "@tsndr/cloudflare-worker-jwt";
 import FlowEnc from "@/libs/crypto/flow-enc.js";
 import type { PasswdInfo } from "@/libs/types.js";
 import { getConfig, initAlistConfig, loadConfig } from "./config.js";
@@ -44,6 +45,8 @@ function buildRoutes(): Route[] {
   return [
     // /redirect/:key
     route("*", "/redirect/([^/]+)", handleRedirect),
+    // /@console/api/login
+    route("POST", "/@console/api/login", handleLogin),
     // /api/fs/get
     route("*", "/api/fs/get", handleFsGet),
     // /api/fs/list
@@ -128,6 +131,63 @@ async function handleConsole(_request: Request): Promise<Response> {
   return new Response(consoleHtmlBody, {
     headers: { "content-type": "text/html; charset=utf-8" },
   });
+}
+
+function parseExpiresIn(expiresIn: string): number {
+  const match = expiresIn.match(/^(\d+)([smhd])$/);
+  if (!match) return 7 * 24 * 60 * 60; // 默认 7 天
+  const value = Number.parseInt(match[1], 10);
+  const unit = match[2];
+  switch (unit) {
+    case "s":
+      return value;
+    case "m":
+      return value * 60;
+    case "h":
+      return value * 60 * 60;
+    case "d":
+      return value * 24 * 60 * 60;
+    default:
+      return 7 * 24 * 60 * 60;
+  }
+}
+
+async function handleLogin(request: Request): Promise<Response> {
+  try {
+    const body = (await request.json()) as { password?: string };
+    const config = getConfig();
+    const correctPassword = config.password ?? "123456";
+    const jwtSecret = config.jwtSecret ?? "alist-encrypt-secret";
+    const jwtExpiresIn = config.jwtExpiresIn ?? "7d";
+
+    if (body.password === correctPassword) {
+      const expiresIn = parseExpiresIn(jwtExpiresIn);
+      const exp = Math.floor(Date.now() / 1000) + expiresIn;
+      const token = await jwt.sign(
+        { exp, iat: Math.floor(Date.now() / 1000) },
+        jwtSecret,
+      );
+      return Response.json({ success: true, token });
+    }
+    return Response.json(
+      { success: false, message: "Invalid password" },
+      { status: 401 },
+    );
+  } catch {
+    return Response.json(
+      { success: false, message: "Invalid request" },
+      { status: 400 },
+    );
+  }
+}
+
+export async function verifyToken(request: Request): Promise<boolean> {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) return false;
+  const token = authHeader.slice(7);
+  const config = getConfig();
+  const jwtSecret = config.jwtSecret ?? "alist-encrypt-secret";
+  return jwt.verify(token, jwtSecret);
 }
 
 async function handleRedirect(

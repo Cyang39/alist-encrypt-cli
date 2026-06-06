@@ -15,6 +15,7 @@ const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 
 const DEFAULT_CONFIG: ServerConfig = {
   port: 5344,
+  password: "123456",
   alistServer: {
     name: "alist",
     path: "/*",

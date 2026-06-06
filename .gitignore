@@ -6,6 +6,8 @@ out
 dist
 *.tgz
 
+*.bun-build
+
 # code coverage
 coverage
 *.lcov
