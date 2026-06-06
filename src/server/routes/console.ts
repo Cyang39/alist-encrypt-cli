@@ -8,7 +8,9 @@ import { verifyToken } from "../middleware/auth.js";
 // Web UI HTML
 let consoleHtmlBody: string;
 try {
-  const mod = await import("../../../dist/index.html", { with: { type: "text" } });
+  const mod = await import("../../../dist/index.html", {
+    with: { type: "text" },
+  });
   consoleHtmlBody = mod.default as unknown as string;
 } catch {
   consoleHtmlBody = "<h1>Web UI not built. Run: bun run build</h1>";
