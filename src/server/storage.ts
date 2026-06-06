@@ -60,7 +60,12 @@ export function getFileInfo(path: string): Record<string, unknown> | null {
 
 export function cacheRedirect(
   key: string,
-  data: { url: string; passwdInfo: unknown; fileSize: number },
+  data: {
+    url: string;
+    passwdInfo: unknown;
+    fileSize: number;
+    encFileName?: string;
+  },
 ): void {
   set(`redirect:${key}`, data, REDIRECT_TTL);
 }

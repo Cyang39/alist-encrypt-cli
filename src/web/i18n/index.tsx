@@ -4,7 +4,7 @@ import zh from "./zh.js";
 
 export type Lang = "en" | "zh";
 
-const messages: Record<Lang, typeof en> = { en, zh };
+const messages: Record<Lang, Record<string, string>> = { en, zh };
 
 export interface I18nContextValue {
   lang: Lang;

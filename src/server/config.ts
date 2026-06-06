@@ -82,6 +82,6 @@ export function initAlistConfig(
 ): void {
   for (const passwdInfo of alistServer.passwdList) {
     // 清理旧版本遗留的 origEncPath
-    delete passwdInfo.origEncPath;
+    delete (passwdInfo as unknown as Record<string, unknown>).origEncPath;
   }
 }

@@ -396,32 +396,44 @@ export default function Settings() {
     value: unknown,
   ) => {
     const list = [...config.webdavServer];
-    list[i] = { ...list[i], [field]: value };
-    setConfig({ ...config, webdavServer: list });
+    const item = list[i];
+    if (item) {
+      list[i] = { ...item, [field]: value } as WebdavServer;
+      setConfig({ ...config, webdavServer: list });
+    }
   };
 
   const updateWebdavPasswd = (wi: number, pi: number, v: PasswdInfo) => {
     const list = [...config.webdavServer];
-    const passwdList = [...list[wi].passwdList];
-    passwdList[pi] = v;
-    list[wi] = { ...list[wi], passwdList };
-    setConfig({ ...config, webdavServer: list });
+    const item = list[wi];
+    if (item) {
+      const passwdList = [...item.passwdList];
+      passwdList[pi] = v;
+      list[wi] = { ...item, passwdList };
+      setConfig({ ...config, webdavServer: list });
+    }
   };
 
   const removeWebdavPasswd = (wi: number, pi: number) => {
     const list = [...config.webdavServer];
-    const passwdList = list[wi].passwdList.filter((_, idx) => idx !== pi);
-    list[wi] = { ...list[wi], passwdList };
-    setConfig({ ...config, webdavServer: list });
+    const item = list[wi];
+    if (item) {
+      const passwdList = item.passwdList.filter((_, idx) => idx !== pi);
+      list[wi] = { ...item, passwdList };
+      setConfig({ ...config, webdavServer: list });
+    }
   };
 
   const addWebdavPasswd = (wi: number) => {
     const list = [...config.webdavServer];
-    list[wi] = {
-      ...list[wi],
-      passwdList: [...list[wi].passwdList, newPasswdInfo()],
-    };
-    setConfig({ ...config, webdavServer: list });
+    const item = list[wi];
+    if (item) {
+      list[wi] = {
+        ...item,
+        passwdList: [...item.passwdList, newPasswdInfo()],
+      };
+      setConfig({ ...config, webdavServer: list });
+    }
   };
 
   return (

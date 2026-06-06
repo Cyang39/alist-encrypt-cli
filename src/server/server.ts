@@ -6,7 +6,7 @@ import { pipeline } from "node:stream/promises";
 
 import jwt from "@tsndr/cloudflare-worker-jwt";
 import FlowEnc from "@/libs/crypto/flow-enc.js";
-import type { PasswdInfo, ServerConfig } from "@/libs/types.js";
+import type { EncType, PasswdInfo, ServerConfig } from "@/libs/types.js";
 import {
   getConfig,
   initAlistConfig,
@@ -28,7 +28,7 @@ import {
 let consoleHtmlBody: string;
 try {
   const mod = await import("../../dist/index.html", { with: { type: "text" } });
-  consoleHtmlBody = mod.default;
+  consoleHtmlBody = mod.default as unknown as string;
 } catch {
   consoleHtmlBody = "<h1>Web UI not built. Run: bun run build:web</h1>";
 }
@@ -155,7 +155,7 @@ async function handleConsole(_request: Request): Promise<Response> {
 
 function parseExpiresIn(expiresIn: string): number {
   const match = expiresIn.match(/^(\d+)([smhd])$/);
-  if (!match) return 7 * 24 * 60 * 60; // 默认 7 天
+  if (!match?.[1] || !match?.[2]) return 7 * 24 * 60 * 60; // 默认 7 天
   const value = Number.parseInt(match[1], 10);
   const unit = match[2];
   switch (unit) {
@@ -207,7 +207,7 @@ export async function verifyToken(request: Request): Promise<boolean> {
   const token = authHeader.slice(7);
   const config = getConfig();
   const jwtSecret = config.jwtSecret ?? "alist-encrypt-secret";
-  return jwt.verify(token, jwtSecret);
+  return !!(await jwt.verify(token, jwtSecret));
 }
 
 async function handleGetSettings(request: Request): Promise<Response> {
@@ -297,11 +297,11 @@ async function handleSaveSettings(request: Request): Promise<Response> {
   }
 }
 
-function handleCwd(): Response {
+async function handleCwd(): Promise<Response> {
   return Response.json({ success: true, cwd: process.cwd() });
 }
 
-function handleGetLang(): Response {
+async function handleGetLang(): Promise<Response> {
   const config = getConfig();
   return Response.json({ success: true, lang: config.web?.lang ?? "en" });
 }
@@ -443,7 +443,7 @@ async function handleEncrypt(request: Request): Promise<Response> {
         let failed = 0;
 
         for (let i = 0; i < files.length; i++) {
-          const filePath = files[i];
+          const filePath = files[i] as string;
           const relativePath = path.relative(inputDir, filePath);
           let outputPath = path.join(outputDir, relativePath);
 
@@ -536,6 +536,7 @@ async function handleRedirect(
     url: string;
     passwdInfo: PasswdInfo;
     fileSize: number;
+    encFileName?: string;
   } | null;
 
   if (!data) {
