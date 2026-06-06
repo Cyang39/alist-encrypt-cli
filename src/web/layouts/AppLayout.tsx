@@ -1,15 +1,17 @@
+import type { LucideIcon } from "lucide-react";
+import { Home, Lock, LogOut, Menu, Settings, X } from "lucide-react";
 import { useState } from "react";
 import { Navigate, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useI18n } from "../i18n/index.tsx";
 
 function SidebarLink({
   to,
-  icon,
+  icon: Icon,
   label,
   onClick,
 }: {
   to: string;
-  icon: string;
+  icon: LucideIcon;
   label: string;
   onClick?: () => void;
 }) {
@@ -25,7 +27,7 @@ function SidebarLink({
         }`
       }
     >
-      <span className="text-lg">{icon}</span>
+      <Icon size={18} />
       {label}
     </NavLink>
   );
@@ -58,29 +60,7 @@ export default function AppLayout() {
           onClick={() => setMenuOpen(!menuOpen)}
           className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
         >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            {menuOpen ? (
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            ) : (
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-            )}
-          </svg>
+          {menuOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       </header>
 
@@ -89,19 +69,19 @@ export default function AppLayout() {
         <div className="md:hidden bg-white border-b border-gray-200 px-3 py-2 space-y-1 flex-shrink-0 shadow-sm">
           <SidebarLink
             to="/home"
-            icon="🏠"
+            icon={Home}
             label={t("sidebar.home")}
             onClick={closeMenu}
           />
           <SidebarLink
             to="/encrypt"
-            icon="🔒"
+            icon={Lock}
             label={t("sidebar.encrypt")}
             onClick={closeMenu}
           />
           <SidebarLink
             to="/settings"
-            icon="⚙️"
+            icon={Settings}
             label={t("sidebar.settings")}
             onClick={closeMenu}
           />
@@ -113,7 +93,7 @@ export default function AppLayout() {
             }}
             className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-500 hover:bg-gray-100 rounded-lg w-full transition-colors"
           >
-            <span className="text-lg">🚪</span>
+            <LogOut size={18} />
             {t("sidebar.logout")}
           </button>
         </div>
@@ -126,11 +106,15 @@ export default function AppLayout() {
             <h1 className="text-lg font-bold text-gray-800">alist-encrypt</h1>
           </div>
           <nav className="flex-1 px-3 py-4 space-y-1">
-            <SidebarLink to="/home" icon="🏠" label={t("sidebar.home")} />
-            <SidebarLink to="/encrypt" icon="🔒" label={t("sidebar.encrypt")} />
+            <SidebarLink to="/home" icon={Home} label={t("sidebar.home")} />
+            <SidebarLink
+              to="/encrypt"
+              icon={Lock}
+              label={t("sidebar.encrypt")}
+            />
             <SidebarLink
               to="/settings"
-              icon="⚙️"
+              icon={Settings}
               label={t("sidebar.settings")}
             />
           </nav>
@@ -140,7 +124,7 @@ export default function AppLayout() {
               onClick={handleLogout}
               className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-500 hover:bg-gray-100 rounded-lg w-full transition-colors"
             >
-              <span className="text-lg">🚪</span>
+              <LogOut size={18} />
               {t("sidebar.logout")}
             </button>
           </div>
