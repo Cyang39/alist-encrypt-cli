@@ -173,6 +173,38 @@ app.post("/@console/api/restart", verifyToken, async (c) => {
   }
 });
 
+// Encrypt config (auth required)
+app.get("/@console/api/encrypt-config", verifyToken, (c) => {
+  const config = getConfig();
+  return c.json({ success: true, encrypt: config.encrypt ?? {} });
+});
+
+app.post("/@console/api/encrypt-config", verifyToken, async (c) => {
+  try {
+    const body = await c.req.json<{
+      inputDir?: string;
+      outputDir?: string;
+      password?: string;
+      mode?: string;
+      encType?: string;
+      encName?: boolean;
+    }>();
+    const config = getConfig();
+    config.encrypt = {
+      inputDir: body.inputDir,
+      outputDir: body.outputDir,
+      password: body.password,
+      mode: body.mode as "encrypt" | "decrypt" | undefined,
+      encType: body.encType,
+      encName: body.encName,
+    };
+    saveConfig(config);
+    return c.json({ success: true });
+  } catch {
+    return c.json({ success: false, message: "Invalid request" }, 400);
+  }
+});
+
 // Encrypt (auth required, SSE)
 app.post("/@console/api/encrypt", verifyToken, async (c) => {
   // Import encrypt handler lazily to avoid circular deps

@@ -34,24 +34,42 @@ export default function Encrypt() {
   const { t } = useI18n();
   const [inputDir, setInputDir] = useState("");
   const [outputDir, setOutputDir] = useState("");
-
-  useEffect(() => {
-    fetch("/@console/api/cwd")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.success && data.cwd) {
-          const sep = data.cwd.includes("\\") ? "\\" : "/";
-          setInputDir(`${data.cwd}${sep}input`);
-          setOutputDir(`${data.cwd}${sep}output`);
-        }
-      })
-      .catch(() => {});
-  }, []);
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"encrypt" | "decrypt">("encrypt");
   const [encType, setEncType] = useState("aesctr");
   const [encName, setEncName] = useState(false);
   const [running, setRunning] = useState(false);
+
+  // Load encrypt config from server on mount
+  useEffect(() => {
+    const token = localStorage.getItem("console_token");
+    fetch("/@console/api/encrypt-config", {
+      headers: { authorization: token ? `Bearer ${token}` : "" },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.encrypt) {
+          const enc = data.encrypt;
+          if (enc.inputDir) setInputDir(enc.inputDir);
+          if (enc.outputDir) setOutputDir(enc.outputDir);
+          if (enc.password) setPassword(enc.password);
+          if (enc.mode) setMode(enc.mode);
+          if (enc.encType) setEncType(enc.encType);
+          if (enc.encName !== undefined) setEncName(enc.encName);
+          return;
+        }
+        return fetch("/@console/api/cwd")
+          .then((r2) => r2.json())
+          .then((data2) => {
+            if (data2.success && data2.cwd) {
+              const sep = data2.cwd.includes("\\") ? "\\" : "/";
+              setInputDir(`${data2.cwd}${sep}input`);
+              setOutputDir(`${data2.cwd}${sep}output`);
+            }
+          });
+      })
+      .catch(() => {});
+  }, []);
 
   // Progress state
   const [phase, setPhase] = useState<"idle" | "running" | "done">("idle");
@@ -85,7 +103,24 @@ export default function Encrypt() {
     setFileList([]);
     setSummary(null);
 
+    // Save encrypt config to server
     const token = localStorage.getItem("console_token");
+    fetch("/@console/api/encrypt-config", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: token ? `Bearer ${token}` : "",
+      },
+      body: JSON.stringify({
+        inputDir,
+        outputDir,
+        password,
+        mode,
+        encType,
+        encName,
+      }),
+    }).catch(() => {});
+
     fetch("/@console/api/encrypt", {
       method: "POST",
       headers: {

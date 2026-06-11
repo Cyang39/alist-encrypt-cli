@@ -37,6 +37,15 @@ export interface ServerConfig {
     passwdList: PasswdInfo[];
   };
   webdavServer: WebdavConfig[];
+  /** 本地加密页面配置 */
+  encrypt?: {
+    inputDir?: string;
+    outputDir?: string;
+    password?: string;
+    mode?: "encrypt" | "decrypt";
+    encType?: string;
+    encName?: boolean;
+  };
 }
 
 export interface WebdavConfig {
